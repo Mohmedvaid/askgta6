@@ -214,3 +214,30 @@ describe("row level security", () => {
     expect(await seen(f.carol)).toBe(0);
   });
 });
+
+describe("ranked search", () => {
+  let db: Db;
+  let f: Fixture;
+
+  beforeEach(async () => {
+    db = await createTestDb();
+    f = await seedFixture(db);
+    await createPost(db, f.alice, { title: "Airboat routes through the wetlands", body: "Wetlands airboat notes." });
+    await createPost(db, f.alice, {
+      groupId: f.privateGroup,
+      title: "Airboat smuggling run at night",
+      body: "Wetlands airboat smuggling.",
+    });
+  });
+
+  it("ranks results and still enforces row level security", async () => {
+    const titles = async (userId: string) =>
+      asUser(db, userId, async () => {
+        const r = await db.query<{ title: string }>(`select title from public.search_posts('airboat wetlands')`);
+        return r.rows.map((row) => row.title);
+      });
+
+    expect(await titles(f.bob)).toHaveLength(2);
+    expect(await titles(f.carol)).toEqual(["Airboat routes through the wetlands"]);
+  });
+});
