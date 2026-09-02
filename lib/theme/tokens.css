@@ -1,0 +1,80 @@
+/*
+ * Single source of truth for every visual value in AskGTA6.
+ * Nothing outside this file may declare a color, radius, shadow, or font family.
+ * A human swapping the brand edits only this file.
+ */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-0: oklch(0.17 0.012 260);
+  --surface-1: oklch(0.215 0.014 260);
+  --surface-2: oklch(0.265 0.016 260);
+
+  --text-primary: oklch(0.97 0.004 260);
+  --text-secondary: oklch(0.8 0.012 260);
+  --text-muted: oklch(0.64 0.014 260);
+
+  --border: oklch(0.32 0.014 260);
+  --border-strong: oklch(0.44 0.018 260);
+
+  --accent: oklch(0.78 0.16 62);
+  --accent-text: oklch(0.2 0.05 62);
+  --accent-bg: oklch(0.33 0.06 62);
+
+  --danger: oklch(0.68 0.19 22);
+  --warning: oklch(0.82 0.15 85);
+  --success: oklch(0.75 0.15 155);
+
+  --spoiler: oklch(0.6 0.11 300);
+  --spoiler-bg: oklch(0.28 0.05 300);
+
+  --shadow-card: 0 1px 2px oklch(0 0 0 / 0.4);
+  --shadow-raised: 0 8px 24px oklch(0 0 0 / 0.45);
+  --shadow-focus: 0 0 0 3px var(--accent-bg);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --surface-0: oklch(0.985 0.004 85);
+  --surface-1: oklch(1 0 0);
+  --surface-2: oklch(0.955 0.006 85);
+
+  --text-primary: oklch(0.22 0.015 260);
+  --text-secondary: oklch(0.42 0.015 260);
+  --text-muted: oklch(0.55 0.014 260);
+
+  --border: oklch(0.9 0.008 260);
+  --border-strong: oklch(0.78 0.012 260);
+
+  --accent: oklch(0.62 0.16 55);
+  --accent-text: oklch(0.99 0.01 85);
+  --accent-bg: oklch(0.93 0.05 70);
+
+  --danger: oklch(0.55 0.2 25);
+  --warning: oklch(0.62 0.15 75);
+  --success: oklch(0.52 0.14 155);
+
+  --spoiler: oklch(0.5 0.14 300);
+  --spoiler-bg: oklch(0.94 0.04 300);
+
+  --shadow-card: 0 1px 2px oklch(0.22 0.015 260 / 0.08);
+  --shadow-raised: 0 8px 24px oklch(0.22 0.015 260 / 0.12);
+  --shadow-focus: 0 0 0 3px var(--accent-bg);
+}
+
+:root {
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 1rem;
+
+  --font-display: var(--font-display-face), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-body-face), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, SFMono-Regular, monospace;
+
+  --content-max: 46rem;
+  --rail-width: 15rem;
+  --context-width: 19rem;
+}

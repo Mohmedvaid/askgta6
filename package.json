@@ -1,0 +1,58 @@
+{
+  "name": "askgta6",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --project unit --coverage",
+    "test:db": "vitest run --project db",
+    "test:e2e": "playwright test",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm test:db",
+    "seed": "tsx supabase/seed/seed.ts",
+    "supabase:push": "supabase db push"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.5",
+    "@supabase/supabase-js": "^2.112.4",
+    "next": "16.3.4",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.62.1",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "6.9.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/node": "^22.20.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@vitest/coverage-v8": "^4.1.11",
+    "eslint": "^9.39.0",
+    "eslint-config-next": "16.3.4",
+    "jsdom": "^30.0.1",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^4.1.11"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "unrs-resolver",
+      "@tailwindcss/oxide",
+      "sharp"
+    ]
+  }
+}
