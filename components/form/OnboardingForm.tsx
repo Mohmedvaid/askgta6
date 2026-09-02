@@ -1,0 +1,46 @@
+"use client";
+
+import { useActionState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { SpoilerLevelControl } from "../SpoilerLevelControl";
+import { SubmitButton } from "./SubmitButton";
+import { FieldError } from "./FieldError";
+import { completeOnboarding } from "@/actions/onboarding";
+
+export function OnboardingForm({ progress }: { progress: number }) {
+  const router = useRouter();
+  const [state, formAction] = useActionState(completeOnboarding, null);
+
+  useEffect(() => {
+    if (state?.ok) router.push("/feed");
+  }, [state, router]);
+
+  return (
+    <form action={formAction} className="space-y-8">
+      <div>
+        <label htmlFor="username" className="text-sm font-semibold text-text-primary">
+          Username
+        </label>
+        <input
+          id="username"
+          name="username"
+          required
+          maxLength={20}
+          placeholder="vicecitylocal"
+          className="mt-2 w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted"
+        />
+        <p className="mt-1 text-xs text-text-muted">3 to 20 lowercase letters, digits, or underscores.</p>
+      </div>
+
+      <SpoilerLevelControl
+        name="progress"
+        defaultValue={progress}
+        label="How far have you played"
+        hint="Before launch, leave this at the first level."
+      />
+
+      <FieldError message={state && !state.ok ? state.error : null} />
+      <SubmitButton label="Start reading" pendingLabel="Saving" />
+    </form>
+  );
+}

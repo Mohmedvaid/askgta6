@@ -1,0 +1,52 @@
+"use client";
+
+import { useActionState, useEffect, useRef } from "react";
+import { SpoilerLevelControl } from "../SpoilerLevelControl";
+import { SubmitButton } from "./SubmitButton";
+import { FieldError } from "./FieldError";
+import { createReply } from "@/actions/replies";
+
+type ReplyComposerProps = {
+  postId: string;
+  defaultSpoilerLevel: number;
+};
+
+export function ReplyComposer({ postId, defaultSpoilerLevel }: ReplyComposerProps) {
+  const [state, formAction] = useActionState(createReply, null);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    if (state?.ok) formRef.current?.reset();
+  }, [state]);
+
+  return (
+    <form ref={formRef} action={formAction} className="space-y-5">
+      <input type="hidden" name="postId" value={postId} />
+
+      <div>
+        <label htmlFor="reply-body" className="text-sm font-semibold text-text-primary">
+          Your reply
+        </label>
+        <textarea
+          id="reply-body"
+          name="body"
+          rows={6}
+          maxLength={10000}
+          required
+          placeholder="Answer the question, or add what you know."
+          className="mt-2 w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted"
+        />
+      </div>
+
+      <SpoilerLevelControl
+        name="spoilerLevel"
+        defaultValue={defaultSpoilerLevel}
+        label="Spoiler level for this reply"
+        hint="Replies are gated on their own level, so a level 3 answer stays hidden on a level 0 question."
+      />
+
+      <FieldError message={state && !state.ok ? state.error : null} />
+      <SubmitButton label="Post reply" pendingLabel="Posting" />
+    </form>
+  );
+}

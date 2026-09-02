@@ -14,9 +14,13 @@ export default tseslint.config(
     rules: { "theme/no-raw-color": "error" },
   },
   {
+    // tokens.css and the Open Graph palette are where color values are allowed to live.
+    files: ["lib/theme/**"],
+    rules: { "theme/no-raw-color": "off" },
+  },
+  {
     rules: {
       "@typescript-eslint/no-unused-vars": ["error", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
-      "@typescript-eslint/consistent-type-imports": ["error", { prefer: "type-imports" }],
     },
   },
 );

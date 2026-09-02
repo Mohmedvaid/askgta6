@@ -53,4 +53,6 @@ const rule = {
   },
 };
 
-export default { rules: { "no-raw-color": rule } };
+const plugin = { rules: { "no-raw-color": rule } };
+
+export default plugin;

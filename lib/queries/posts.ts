@@ -39,7 +39,7 @@ export type FeedTab = "latest" | "top" | "unanswered";
 export type FeedQuery = {
   tab?: FeedTab;
   topic?: Topic | null;
-  groupId?: string | null;
+  groupId?: string;
   authorId?: string | null;
   cursor?: string | null;
   search?: string | null;
@@ -85,7 +85,6 @@ export async function listPosts(query: FeedQuery, viewerProgress: number): Promi
   let builder = supabase.from("posts").select(POST_COLUMNS).eq("is_hidden", false).limit(PAGE_SIZE);
 
   if (query.groupId) builder = builder.eq("group_id", query.groupId);
-  else if (query.groupId === null && query.authorId == null) builder = builder.is("group_id", null);
 
   if (query.topic) builder = builder.eq("topic", query.topic);
   if (query.authorId) builder = builder.eq("author_id", query.authorId);
