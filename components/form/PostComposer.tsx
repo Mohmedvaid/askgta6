@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { SpoilerLevelControl } from "../SpoilerLevelControl";
 import { SubmitButton } from "./SubmitButton";
 import { FieldError } from "./FieldError";
@@ -28,6 +28,11 @@ const inputClass =
 
 export function PostComposer({ action, defaults, submitLabel }: PostComposerProps) {
   const [state, formAction] = useActionState(action, null);
+  // React resets an uncontrolled form on submit. A rejected post would lose everything
+  // the person wrote, so the text fields are held here instead.
+  const [title, setTitle] = useState(defaults.title ?? "");
+  const [body, setBody] = useState(defaults.body ?? "");
+  const [topic, setTopic] = useState(defaults.topic ?? "general");
   const editing = Boolean(defaults.postId);
 
   return (
@@ -65,7 +70,8 @@ export function PostComposer({ action, defaults, submitLabel }: PostComposerProp
         <input
           id="title"
           name="title"
-          defaultValue={defaults.title}
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
           maxLength={140}
           required
           placeholder="Ask it the way you would say it out loud"
@@ -80,7 +86,8 @@ export function PostComposer({ action, defaults, submitLabel }: PostComposerProp
         <textarea
           id="body"
           name="body"
-          defaultValue={defaults.body}
+          value={body}
+          onChange={(event) => setBody(event.target.value)}
           rows={10}
           maxLength={10000}
           required
@@ -96,7 +103,8 @@ export function PostComposer({ action, defaults, submitLabel }: PostComposerProp
         <select
           id="topic"
           name="topic"
-          defaultValue={defaults.topic ?? "general"}
+          value={topic}
+          onChange={(event) => setTopic(event.target.value)}
           className={`mt-2 ${inputClass}`}
         >
           {TOPICS.map((topic) => (

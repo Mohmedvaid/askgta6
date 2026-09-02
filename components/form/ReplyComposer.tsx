@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useState } from "react";
 import { SpoilerLevelControl } from "../SpoilerLevelControl";
 import { SubmitButton } from "./SubmitButton";
 import { FieldError } from "./FieldError";
@@ -13,14 +13,18 @@ type ReplyComposerProps = {
 
 export function ReplyComposer({ postId, defaultSpoilerLevel }: ReplyComposerProps) {
   const [state, formAction] = useActionState(createReply, null);
-  const formRef = useRef<HTMLFormElement>(null);
+  // React resets an uncontrolled form on submit, which would throw away the draft
+  // when the server rejects it. Holding the body here keeps a refused reply on screen.
+  const [body, setBody] = useState("");
+  const [handled, setHandled] = useState(state);
 
-  useEffect(() => {
-    if (state?.ok) formRef.current?.reset();
-  }, [state]);
+  if (state !== handled) {
+    setHandled(state);
+    if (state?.ok) setBody("");
+  }
 
   return (
-    <form ref={formRef} action={formAction} className="space-y-5">
+    <form action={formAction} className="space-y-5">
       <input type="hidden" name="postId" value={postId} />
 
       <div>
@@ -33,6 +37,8 @@ export function ReplyComposer({ postId, defaultSpoilerLevel }: ReplyComposerProp
           rows={6}
           maxLength={10000}
           required
+          value={body}
+          onChange={(event) => setBody(event.target.value)}
           placeholder="Answer the question, or add what you know."
           className="mt-2 w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted"
         />
