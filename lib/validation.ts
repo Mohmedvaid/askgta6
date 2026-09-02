@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { POST_KINDS, TOPICS } from "./topics";
 import { SPOILER_LEVEL_COUNT } from "./spoilers";
+import { isValidUsername } from "./username";
 
 const spoilerLevel = z.coerce.number().int().min(0).max(SPOILER_LEVEL_COUNT - 1);
 const uuid = z.string().uuid();
@@ -21,12 +22,6 @@ export const postEditSchema = postInputSchema
 export const replyInputSchema = z.object({
   postId: uuid,
   body: z.string().trim().min(1, "Write a reply before posting.").max(10000, "Reply is capped at 10000 characters."),
-  spoilerLevel: spoilerLevel,
-});
-
-export const replyEditSchema = z.object({
-  replyId: uuid,
-  body: z.string().trim().min(1, "Write a reply before saving.").max(10000, "Reply is capped at 10000 characters."),
   spoilerLevel: spoilerLevel,
 });
 
@@ -61,7 +56,7 @@ export const profileSchema = z.object({
     .string()
     .trim()
     .toLowerCase()
-    .regex(/^[a-z0-9_]{3,20}$/, "Use 3 to 20 lowercase letters, digits, or underscores."),
+    .refine(isValidUsername, "Use 3 to 20 lowercase letters, digits, or underscores."),
   displayName: z.string().trim().max(40, "Display name is capped at 40 characters.").optional(),
 });
 

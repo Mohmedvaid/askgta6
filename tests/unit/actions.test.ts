@@ -31,7 +31,7 @@ vi.mock("next/navigation", () => ({
 const { revealContent } = await import("@/actions/reveal");
 const { castVote, getMyVote } = await import("@/actions/votes");
 const { createPost, editPost } = await import("@/actions/posts");
-const { createReply, editReply } = await import("@/actions/replies");
+const { createReply } = await import("@/actions/replies");
 const { submitReport } = await import("@/actions/reports");
 const { createGroup, redeemInvite } = await import("@/actions/groups");
 const { saveProfile, setProgress, uploadAvatar } = await import("@/actions/profile");
@@ -203,17 +203,6 @@ describe("replies", () => {
     expect(await createReply(null, form({ postId: UUID, body: "Yes.", spoilerLevel: "0" }))).toEqual({
       ok: false,
       error: "You are replying too quickly. Wait a minute and try again.",
-    });
-  });
-
-  it("edits a reply", async () => {
-    viewer.current = SIGNED_IN;
-    expect(await editReply(null, form({ replyId: UUID, body: "Edited.", spoilerLevel: "1" }))).toEqual({
-      ok: true,
-      data: undefined,
-    });
-    expect(await editReply(null, form({ replyId: "nope", body: "Edited.", spoilerLevel: "1" }))).toMatchObject({
-      ok: false,
     });
   });
 });

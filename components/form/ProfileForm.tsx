@@ -1,15 +1,17 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { SubmitButton } from "./SubmitButton";
 import { FieldError } from "./FieldError";
 import { saveProfile } from "@/actions/profile";
+import { normalizeUsername } from "@/lib/username";
 
 const inputClass =
   "w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted";
 
 export function ProfileForm({ username, displayName }: { username: string; displayName: string | null }) {
   const [state, formAction] = useActionState(saveProfile, null);
+  const [name, setName] = useState(username);
 
   return (
     <form action={formAction} className="space-y-5">
@@ -20,7 +22,8 @@ export function ProfileForm({ username, displayName }: { username: string; displ
         <input
           id="username"
           name="username"
-          defaultValue={username}
+          value={name}
+          onChange={(event) => setName(normalizeUsername(event.target.value))}
           required
           maxLength={20}
           className={`mt-2 ${inputClass}`}

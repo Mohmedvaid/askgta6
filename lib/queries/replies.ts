@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "../supabase/server";
-import { applySpoilerGate, applySpoilerGateAll, type Gated } from "../spoilers";
+import { applySpoilerGateAll, type Gated } from "../spoilers";
 import type { PostAuthor } from "./posts";
 
 const REPLY_COLUMNS = `
@@ -61,14 +61,6 @@ export async function listRepliesByAuthor(authorId: string, viewerProgress: numb
 
   if (error || !data) return [];
   return applySpoilerGateAll((data as Record<string, unknown>[]).map(normalize), viewerProgress);
-}
-
-export async function getReply(replyId: string, viewerProgress: number): Promise<GatedReply | null> {
-  const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("replies").select(REPLY_COLUMNS).eq("id", replyId).maybeSingle();
-
-  if (error || !data) return null;
-  return applySpoilerGate(normalize(data as Record<string, unknown>), viewerProgress);
 }
 
 export async function getReplyRaw(replyId: string): Promise<ReplyRow | null> {

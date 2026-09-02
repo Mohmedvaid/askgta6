@@ -34,7 +34,7 @@ Verified by running the app against a build, by the pglite database suite, and b
 - `set_hidden` is unreachable without the service role.
 - Ranked search still enforces row level security.
 
-**Verified by the unit suite (213 tests, `pnpm test`)**
+**Verified by the unit suite (212 tests, `pnpm test`)**
 
 - The gate at every one of the 64 viewer and item level combinations, that it strips title and body, that it leaks no length, and that it does not mutate its input.
 - Every zod schema, valid and invalid.
@@ -49,15 +49,15 @@ Sign up, onboarding, posting, replying, voting, accepting an answer, avatar uplo
 ## Coverage, from the last run
 
 ```
-Statements   : 89.84% ( 655/729 )
-Branches     : 84.82% ( 559/659 )
-Functions    : 95.2%  ( 139/146 )
-Lines        : 90.99% ( 576/633 )
+Statements   : 89.79% ( 642/715 )
+Branches     : 85.22% ( 548/643 )
+Functions    : 94.52% ( 138/146 )
+Lines        : 90.69% ( 565/623 )
 ```
 
 Threshold in `vitest.config.mts` is 80 percent lines and branches, enforced, so `pnpm test` fails below it. Coverage covers `lib/`, `actions/`, and `components/`. Excluded: `lib/theme/fonts.ts` (a `next/font` call), `lib/supabase/**` (client construction, exercised by everything else).
 
-Test counts: 213 unit, 38 database, 20 Playwright across desktop and mobile.
+Test counts: 212 unit, 38 database, 20 Playwright across desktop and mobile.
 
 ## Stubbed, partial, or untested
 

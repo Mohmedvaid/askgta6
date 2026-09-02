@@ -41,6 +41,7 @@ One line each: what was chosen, what was rejected, why.
 
 - **Text fields in the composers are controlled.** React resets an uncontrolled form when a server action runs, which threw away a whole draft post when the server rejected it. Holding the text in state is the fix; the tests cover it.
 - **No form library.** No form has more than four fields.
+- **The username shape is declared once, in `lib/username.ts`.** `profileSchema` refines against `isValidUsername` rather than repeating the regex, and both username inputs run `normalizeUsername` as you type so the inline error is rare. The database check constraint is the third copy and the only one that has to be kept in step by hand.
 
 ## Testing
 

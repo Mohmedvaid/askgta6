@@ -186,3 +186,11 @@ describe("topics", () => {
     expect(isTopic(7)).toBe(false);
   });
 });
+
+describe("normalizeUsername in the compose path", () => {
+  it("strips exactly what the database check constraint would reject", () => {
+    expect(normalizeUsername("Vice City 6!")).toBe("vicecity6");
+    expect(normalizeUsername("night-shift")).toBe("nightshift");
+    expect(isValidUsername(normalizeUsername("Vice City 6!"))).toBe(true);
+  });
+});

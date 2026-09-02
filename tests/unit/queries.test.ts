@@ -9,7 +9,7 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 const { getPost, getPostRaw, listPosts, PAGE_SIZE } = await import("@/lib/queries/posts");
-const { getReply, listReplies, listRepliesByAuthor } = await import("@/lib/queries/replies");
+const { listReplies, listRepliesByAuthor } = await import("@/lib/queries/replies");
 const { getGroupBySlug, isMember, listDiscoverableGroups, listInvites, listMyGroups } = await import(
   "@/lib/queries/groups"
 );
@@ -199,7 +199,6 @@ describe("replies", () => {
     holder.client = createFakeClient({ tables: { replies: { data: null, error: { message: "no" } } } });
     expect(await listReplies("post", 7, null)).toEqual([]);
     expect(await listRepliesByAuthor("author", 7)).toEqual([]);
-    expect(await getReply("id", 7)).toBeNull();
   });
 
   it("gates a profile's replies too", async () => {
@@ -208,11 +207,6 @@ describe("replies", () => {
     });
     const replies = await listRepliesByAuthor("author", 0);
     expect(replies[0]!.hidden).toBe(true);
-  });
-
-  it("returns a single gated reply", async () => {
-    holder.client = createFakeClient({ tables: { replies: { data: replyRow(), error: null } } });
-    expect((await getReply("id", 7))?.hidden).toBe(false);
   });
 });
 

@@ -10,7 +10,6 @@ import {
   postInputSchema,
   profileSchema,
   progressSchema,
-  replyEditSchema,
   replyInputSchema,
   reportSchema,
   themeSchema,
@@ -82,8 +81,6 @@ describe("reply schemas", () => {
   it("accepts a reply and rejects an empty one", () => {
     expect(replyInputSchema.parse({ postId: UUID, body: "Yes.", spoilerLevel: 2 }).spoilerLevel).toBe(2);
     expect(replyInputSchema.safeParse({ postId: UUID, body: "", spoilerLevel: 0 }).success).toBe(false);
-    expect(replyEditSchema.safeParse({ replyId: UUID, body: "Edited.", spoilerLevel: 7 }).success).toBe(true);
-    expect(replyEditSchema.safeParse({ replyId: UUID, body: "Edited.", spoilerLevel: 8 }).success).toBe(false);
   });
 });
 

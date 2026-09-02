@@ -1,15 +1,17 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { SpoilerLevelControl } from "../SpoilerLevelControl";
 import { SubmitButton } from "./SubmitButton";
 import { FieldError } from "./FieldError";
 import { completeOnboarding } from "@/actions/onboarding";
+import { normalizeUsername } from "@/lib/username";
 
 export function OnboardingForm({ progress }: { progress: number }) {
   const router = useRouter();
   const [state, formAction] = useActionState(completeOnboarding, null);
+  const [name, setName] = useState("");
 
   useEffect(() => {
     if (state?.ok) router.push("/feed");
@@ -24,6 +26,8 @@ export function OnboardingForm({ progress }: { progress: number }) {
         <input
           id="username"
           name="username"
+          value={name}
+          onChange={(event) => setName(normalizeUsername(event.target.value))}
           required
           maxLength={20}
           placeholder="vicecitylocal"
