@@ -1,8 +1,15 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
-/** Request scoped Supabase client that carries the signed in user's session. */
-export async function createSupabaseServerClient() {
+/**
+ * Request scoped Supabase client that carries the signed in user's session.
+ *
+ * Wrapped in cache() so the whole request shares one client. Roughly forty call
+ * sites ask for it during a page render, and without this each one re-read the
+ * cookie jar and built a fresh client that resolved the session again.
+ */
+export const createSupabaseServerClient = cache(async () => {
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -26,4 +33,4 @@ export async function createSupabaseServerClient() {
       },
     },
   );
-}
+});
