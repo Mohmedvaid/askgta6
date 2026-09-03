@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { Mark } from "./brand/Mark";
 
 type AvatarProps = {
@@ -19,13 +20,15 @@ export function Avatar({ username, url, size = 32 }: AvatarProps) {
   }
 
   return (
-    // Avatars come from one Supabase bucket at a known size, so the plain tag is the right tool.
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    // Through next/image so the Supabase original is resized and re-encoded once
+    // rather than shipped whole to every reader. The host is allowed in
+    // next.config.ts; without that entry this throws rather than falling back.
+    <Image
       src={url}
       alt={`${username} avatar`}
       width={size}
       height={size}
+      sizes={`${size}px`}
       className="shrink-0 rounded-md object-cover"
       style={{ width: size, height: size }}
     />

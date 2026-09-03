@@ -1,21 +1,20 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Wordmark } from "@/components/brand/Wordmark";
 import { SpoilerDemo } from "@/components/SpoilerDemo";
 import { PostCard } from "@/components/post/PostCard";
-import { listPosts } from "@/lib/queries/posts";
-import { getViewer } from "@/lib/viewer";
+import { listLandingPosts } from "@/lib/queries/posts";
 import { robotsFor } from "@/lib/indexing";
 
 export const metadata: Metadata = { robots: robotsFor(true) };
 
-export default async function LandingPage() {
-  const viewer = await getViewer();
-  if (viewer) redirect("/feed");
+// Prerendered and refreshed in the background. Nothing on this page depends on
+// who is looking: the signed in redirect lives in middleware, and the strip below
+// is level 0 read through the cookie free client.
+export const revalidate = 600;
 
-  const latest = await listPosts({ tab: "latest" }, 0);
-  const safe = latest.items.filter((post) => !post.hidden).slice(0, 4);
+export default async function LandingPage() {
+  const safe = await listLandingPosts();
 
   return (
     <div className="mx-auto w-full max-w-5xl px-6 py-12 md:py-20">

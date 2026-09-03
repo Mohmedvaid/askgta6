@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -10,9 +11,12 @@ import { ReplyItem } from "@/components/reply/ReplyItem";
 import { ReplyComposer } from "@/components/form/ReplyComposer";
 import { ReportDialog } from "@/components/form/ReportDialog";
 import { Empty } from "@/components/Empty";
+import { SkeletonList } from "@/components/Skeleton";
 import { getPost } from "@/lib/queries/posts";
 import { listReplies } from "@/lib/queries/replies";
-import { getShieldState, getViewer, getViewerProgress } from "@/lib/viewer";
+import { getShieldState, getViewer, getViewerProgress, type Viewer } from "@/lib/viewer";
+import type { ViewerProgress } from "@/lib/spoilers";
+import type { GatedPost } from "@/lib/queries/posts";
 import { getMyVote } from "@/actions/votes";
 import { acceptReply, deletePost } from "@/actions/posts";
 import { deleteReply } from "@/actions/replies";
@@ -48,22 +52,21 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 
 export default async function PostPage({ params }: { params: Params }) {
   const { postId } = await params;
-  const viewer = await getViewer();
-  const progress = await getViewerProgress();
   // A reply defaults to the chapter the author says they are at, which is their
   // shield level whether or not the shield is currently holding anything back.
-  const shield = await getShieldState();
-  const post = await getPost(postId, progress);
+  // All three read the one cached viewer, so this is a single lookup.
+  const [viewer, progress, shield] = await Promise.all([getViewer(), getViewerProgress(), getShieldState()]);
+
+  // The post and the viewer's own vote on it do not depend on each other.
+  const [post, myPostVote] = await Promise.all([getPost(postId, progress), getMyVote("post", postId)]);
+  // Before the response starts, so a missing post is still a real 404. This is why
+  // the route has no loading.tsx: that boundary would flush a 200 shell first.
   if (!post) notFound();
 
-  const replies = await listReplies(postId, progress, post.accepted_reply_id);
-  const myPostVote = await getMyVote("post", postId);
-  const replyVotes = await Promise.all(replies.map((reply) => getMyVote("reply", reply.id)));
   const isAuthor = viewer?.userId === post.author_id;
 
   return (
     <div className="space-y-10">
-      <JsonLd data={postJsonLd(post, replies)} />
       <article>
         <div className="flex flex-wrap items-center gap-3">
           <TopicBadge topic={post.topic} />
@@ -119,26 +122,9 @@ export default async function PostPage({ params }: { params: Params }) {
           {post.reply_count} {post.reply_count === 1 ? "reply" : "replies"}
         </h2>
 
-        {replies.length === 0 ? (
-          <div className="mt-4">
-            <Empty title="No replies yet" body="Be the first to answer this one." />
-          </div>
-        ) : (
-          <div className="mt-4 space-y-4">
-            {replies.map((reply, index) => (
-              <ReplyItem
-                key={reply.id}
-                reply={reply}
-                myVote={replyVotes[index] ?? 0}
-                accepted={post.accepted_reply_id === reply.id}
-                canAccept={isAuthor && post.kind === "question"}
-                isAuthor={viewer?.userId === reply.author_id}
-                acceptAction={acceptReply}
-                deleteAction={deleteReply}
-              />
-            ))}
-          </div>
-        )}
+        <Suspense fallback={<SkeletonList count={Math.min(post.reply_count, 3) || 1} />}>
+          <Replies post={post} viewer={viewer} progress={progress} isAuthor={isAuthor} />
+        </Suspense>
       </section>
 
       <section className="border-t border-border pt-8">
@@ -154,5 +140,53 @@ export default async function PostPage({ params }: { params: Params }) {
         )}
       </section>
     </div>
+  );
+}
+
+/**
+ * The replies, streamed. They are the slow half of the page and nothing above
+ * depends on them, so the post itself paints while these are still in flight.
+ *
+ * The structured data lives here because a QAPage needs the accepted answer.
+ * Search engines read JSON-LD wherever it sits in the document.
+ */
+async function Replies({
+  post,
+  viewer,
+  progress,
+  isAuthor,
+}: {
+  post: GatedPost;
+  viewer: Viewer | null;
+  progress: ViewerProgress;
+  isAuthor: boolean;
+}) {
+  const replies = await listReplies(post.id, progress, post.accepted_reply_id);
+  const replyVotes = await Promise.all(replies.map((reply) => getMyVote("reply", reply.id)));
+
+  return (
+    <>
+      <JsonLd data={postJsonLd(post, replies)} />
+      {replies.length === 0 ? (
+        <div className="mt-4">
+          <Empty title="No replies yet" body="Be the first to answer this one." />
+        </div>
+      ) : (
+        <div className="mt-4 space-y-4">
+          {replies.map((reply, index) => (
+            <ReplyItem
+              key={reply.id}
+              reply={reply}
+              myVote={replyVotes[index] ?? 0}
+              accepted={post.accepted_reply_id === reply.id}
+              canAccept={isAuthor && post.kind === "question"}
+              isAuthor={viewer?.userId === reply.author_id}
+              acceptAction={acceptReply}
+              deleteAction={deleteReply}
+            />
+          ))}
+        </div>
+      )}
+    </>
   );
 }

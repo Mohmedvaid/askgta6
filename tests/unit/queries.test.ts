@@ -8,7 +8,12 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => holder.client,
 }));
 
-const { getPost, getPostRaw, listPosts, listSyndicatedPosts, PAGE_SIZE } = await import(
+// The landing page reads through the cookie free client so it can be prerendered.
+vi.mock("@/lib/supabase/public", () => ({
+  createSupabasePublicClient: () => holder.client,
+}));
+
+const { getPost, getPostRaw, listLandingPosts, listPosts, listSyndicatedPosts, PAGE_SIZE } = await import(
   "@/lib/queries/posts"
 );
 const { listReplies, listRepliesByAuthor } = await import("@/lib/queries/replies");
@@ -411,5 +416,24 @@ describe("listSyndicatedPosts", () => {
   it("returns nothing when the query errors", async () => {
     holder.client = createFakeClient({ tables: { posts: { data: null, error: { message: "nope" } } } });
     expect(await listSyndicatedPosts()).toEqual([]);
+  });
+});
+
+describe("listLandingPosts", () => {
+  it("asks for level 0 posts outside every group, newest first", async () => {
+    holder.client = createFakeClient({ tables: { posts: { data: [postRow()], error: null } } });
+
+    const posts = await listLandingPosts(4);
+
+    expect(posts).toHaveLength(1);
+    expect(posts[0]?.hidden).toBe(false);
+    expect(holder.client.calls).toContainEqual({ method: "eq", args: ["spoiler_level", 0] });
+    expect(holder.client.calls).toContainEqual({ method: "is", args: ["group_id", null] });
+    expect(holder.client.calls).toContainEqual({ method: "limit", args: [4] });
+  });
+
+  it("returns nothing when the read fails, so the page still prerenders", async () => {
+    holder.client = createFakeClient({ tables: { posts: { data: null, error: { message: "unreachable" } } } });
+    expect(await listLandingPosts()).toEqual([]);
   });
 });

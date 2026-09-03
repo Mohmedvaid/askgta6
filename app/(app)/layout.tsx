@@ -5,10 +5,13 @@ import { listMyGroups } from "@/lib/queries/groups";
 import { avatarUrl } from "@/lib/queries/profiles";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const viewer = await getViewer();
-  const shield = await getShieldState();
-  const groups = viewer ? await listMyGroups(viewer.userId) : [];
-  const url = await avatarUrl(viewer?.avatarPath);
+  // getViewer and getShieldState share one cached lookup, so this is one round trip.
+  const [viewer, shield] = await Promise.all([getViewer(), getShieldState()]);
+  // These two do not depend on each other, so they go together.
+  const [groups, url] = await Promise.all([
+    viewer ? listMyGroups(viewer.userId) : [],
+    avatarUrl(viewer?.avatarPath),
+  ]);
 
   return (
     <AppShell

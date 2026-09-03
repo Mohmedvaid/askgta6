@@ -26,6 +26,14 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getUser();
+  const { data } = await supabase.auth.getUser();
+
+  // The landing page is prerendered, so it cannot decide this for itself.
+  if (data.user && request.nextUrl.pathname === "/") {
+    const feed = request.nextUrl.clone();
+    feed.pathname = "/feed";
+    return NextResponse.redirect(feed);
+  }
+
   return response;
 }

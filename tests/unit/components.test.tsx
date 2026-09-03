@@ -90,10 +90,12 @@ describe("Avatar", () => {
     expect(screen.getByRole("img", { name: "AskGTA6" })).toBeInTheDocument();
   });
 
-  it("renders the image when there is one", () => {
+  it("renders the image through the optimizer when there is one", () => {
     render(<Avatar username="mara" url="https://cdn.test/a.png" size={48} />);
     const image = screen.getByRole("img", { name: "mara avatar" });
-    expect(image).toHaveAttribute("src", "https://cdn.test/a.png");
+
+    // next/image rewrites the src to /_next/image with the original in the query.
+    expect(image.getAttribute("src")).toContain(encodeURIComponent("https://cdn.test/a.png"));
     expect(image).toHaveAttribute("width", "48");
   });
 });

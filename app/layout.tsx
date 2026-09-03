@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Analytics } from "@vercel/analytics/next";
-import { cookies } from "next/headers";
 import { fontVariables } from "@/lib/theme/fonts";
-import { THEME_COOKIE, resolveTheme } from "@/lib/theme/cookie";
+import { THEME_BOOTSTRAP } from "@/lib/theme/cookie";
 import { NOINDEX, indexingEnabled } from "@/lib/indexing";
 import "./globals.css";
 
@@ -24,13 +23,13 @@ export const metadata: Metadata = {
   robots: NOINDEX,
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  // The cookie is the theme provider. Setting it on <html> here means no flash on first paint.
-  const theme = resolveTheme((await cookies()).get(THEME_COOKIE)?.value);
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" data-theme={theme} className={fontVariables} suppressHydrationWarning>
+    // Dark is the served default, which matches :root in tokens.css. The bootstrap
+    // script below switches a light reader over before anything is painted.
+    <html lang="en" data-theme="dark" className={fontVariables} suppressHydrationWarning>
       <body className="min-h-dvh antialiased">
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
         {children}
         <Analytics />
       </body>

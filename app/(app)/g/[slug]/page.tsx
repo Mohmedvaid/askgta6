@@ -45,8 +45,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function GroupPage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
   const { slug } = await params;
   const query = await searchParams;
-  const viewer = await getViewer();
-  const group = await getGroupBySlug(slug);
+  const [viewer, group] = await Promise.all([getViewer(), getGroupBySlug(slug)]);
 
   if (!group) {
     // A private group the viewer cannot see is indistinguishable from a missing one,
@@ -54,9 +53,11 @@ export default async function GroupPage({ params, searchParams }: { params: Para
     return <PrivateGroupGate />;
   }
 
-  const member = await isMember(group.id, viewer?.userId ?? null);
   const owner = viewer?.userId === group.owner_id;
-  const invites = owner && group.visibility === "private" ? await listInvites(group.id) : [];
+  const [member, invites] = await Promise.all([
+    isMember(group.id, viewer?.userId ?? null),
+    owner && group.visibility === "private" ? listInvites(group.id) : [],
+  ]);
 
   const tabParam = single(query.tab);
   const tab: FeedTab = tabParam === "top" || tabParam === "unanswered" ? tabParam : "latest";
@@ -69,6 +70,7 @@ export default async function GroupPage({ params, searchParams }: { params: Para
     { tab, topic, cursor, groupId: group.id, page: Number.isFinite(page) ? page : 0 },
     await getViewerProgress(),
   );
+
 
   const moreParams = new URLSearchParams();
   if (tab !== "latest") moreParams.set("tab", tab);

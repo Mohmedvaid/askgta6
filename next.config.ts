@@ -18,7 +18,16 @@ const contentSecurityPolicy = [
 
 const NOINDEX_HEADER = { key: "X-Robots-Tag", value: "noindex, nofollow" };
 
+const supabaseHost = supabaseOrigin ? new URL(supabaseOrigin).hostname : "";
+
 const nextConfig: NextConfig = {
+  images: {
+    // Avatars are the only remote image the app renders. Anything else is a bug.
+    remotePatterns: supabaseHost
+      ? [{ protocol: "https" as const, hostname: supabaseHost, pathname: "/storage/v1/object/public/**" }]
+      : [],
+  },
+
   async headers() {
     return [
       // Belt and braces: while indexing is off the whole site carries the header,

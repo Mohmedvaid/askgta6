@@ -1,5 +1,6 @@
 import { createSupabaseServerClient } from "../supabase/server";
-import { applySpoilerGate, applySpoilerGateAll, type Gated, type ViewerProgress } from "../spoilers";
+import { createSupabasePublicClient } from "../supabase/public";
+import { applySpoilerGate, applySpoilerGateAll, NO_GATING, type Gated, type ViewerProgress } from "../spoilers";
 import { decodeCursor, encodeCursor } from "../cursor";
 import type { PostKind, Topic } from "../topics";
 
@@ -198,4 +199,26 @@ export async function listSyndicatedPosts(groupId?: string): Promise<SyndicatedP
       author: row.author?.display_name || row.author?.username || "Someone",
       createdAt: row.created_at,
     }));
+}
+
+/**
+ * The landing page strip. Level 0, never in a group, read through the cookie free
+ * client so the page can be prerendered. Level 0 is nothing but trailers and
+ * announced facts, so there is nothing here for the gate to hold back.
+ */
+export async function listLandingPosts(limit = 4): Promise<GatedPost[]> {
+  const supabase = createSupabasePublicClient();
+
+  const { data, error } = await supabase
+    .from("posts")
+    .select(POST_COLUMNS)
+    .eq("is_hidden", false)
+    .eq("spoiler_level", 0)
+    .is("group_id", null)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error || !data) return [];
+
+  return applySpoilerGateAll((data as Record<string, unknown>[]).map(normalize), NO_GATING);
 }
