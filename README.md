@@ -96,6 +96,14 @@ The value is inlined at build time, so changing it needs a rebuild.
 
 Vercel Analytics, mounted in the root layout. `lib/analytics.ts` declares exactly four events with typed properties: `signup_completed`, `progress_set`, `post_created`, `reveal_clicked`. No payload carries a user id, a title, or a body.
 
+## Auth
+
+Email and password, magic link, and Discord and Google behind their flags. Sign up and magic link both pass `emailRedirectTo` built from `NEXT_PUBLIC_SITE_URL` plus `/auth/callback`, so that origin has to be in the Supabase project's redirect allow list.
+
+Every auth action logs the Supabase code, status, and message with `console.error` so Vercel runtime logs show what actually failed, and never logs an email, token, or password. Known codes map to copy that says what to do next (rate limited, redirect not allowed, invalid credentials, email already registered); anything unmapped keeps a generic message rather than leaking internals. The mapping is `lib/auth-errors.ts`.
+
+Signing out is one server action, reachable from the account menu in the header and from the bottom of settings. It clears the session and returns to the landing page.
+
 ## Moderation
 
 Five distinct reporters hide a post or a reply automatically. Users listed in `ADMIN_USER_IDS` can open `/admin/reports` to hide, unhide, or delete. That is the whole system. There is no roles table.

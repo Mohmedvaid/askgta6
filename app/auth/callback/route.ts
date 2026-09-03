@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { adoptAnonymousShield } from "@/lib/adopt-progress";
+import { logAuthError } from "@/lib/auth-errors";
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
@@ -15,6 +16,8 @@ export async function GET(request: NextRequest) {
       if (data.user) await adoptAnonymousShield(supabase, data.user.id);
       return NextResponse.redirect(new URL(next, request.url));
     }
+
+    logAuthError("exchangeCodeForSession", error);
   }
 
   return NextResponse.redirect(new URL("/auth/sign-in?error=link", request.url));

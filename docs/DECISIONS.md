@@ -38,6 +38,15 @@ One line each: what was chosen, what was rejected, why.
 - **`getViewerProgress` is the single reader.** Profile for a signed in person, cookies for a guest. Every gated query calls it, so the two paths cannot drift.
 - **Signing up copies the cookies onto the profile, then clears them.** Adoption runs in the sign up action and in the auth callback, because magic link and OAuth never touch the action. After adoption the profile is the only source, so there is nothing to keep in step.
 
+## Auth errors
+
+- **Every auth failure is logged with its code, status, and message, and never with anything identifying.** "That did not work" in the browser with nothing in the Vercel log is how an auth bug survives a week. `logAuthError` writes exactly three fields and a test asserts the payload has no email, token, or password in it.
+- **Known codes get copy that says what to do next; everything else keeps the generic message.** Rejected passing the Supabase message straight through: it leaks internals, and `AuthApiError: internal db timeout at pg:5432` helps nobody.
+- **Rate limits are matched on a bare 429 and on any code ending in `rate_limit`, not just the three known names.** Supabase adds codes; a reader hitting a new one should still be told to wait an hour rather than shrugged at.
+- **A refused redirect names the project setting rather than blaming the reader.** They cannot fix an allow list. That one case also matches on message text, because the code is unreliable there; nothing else does, since matching on prose is fragile.
+- **`authCallbackUrl` lives in `lib/auth-callback.ts`, not in the actions file.** A `"use server"` module may only export async functions, and the builder has to be callable from tests.
+- **One sign out path, a server action, used by both surfaces.** Rejected keeping the POST route beside it: two ways out of an account is one too many, and the route had no caller once the action existed.
+
 ## Markdown
 
 - **A small purpose built renderer instead of a markdown library plus a sanitizer.** Escapes the whole source first, then emits only its own tags, so there is no sanitizer configuration to get wrong and no path for raw user HTML. It supports exactly what the compose help text promises: bold, italic, links, inline and fenced code, and lists. Rejected `marked` plus `DOMPurify`, which is two dependencies, a jsdom shim on the server, and a larger surface than the feature needs.

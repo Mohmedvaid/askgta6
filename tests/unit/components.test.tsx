@@ -23,6 +23,7 @@ import { NavRail } from "@/components/shell/NavRail";
 import { BottomBar } from "@/components/shell/BottomBar";
 import { AppShell } from "@/components/shell/AppShell";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
+import { UserMenu } from "@/components/shell/UserMenu";
 import { CopyField } from "@/components/group/CopyField";
 import { FieldError } from "@/components/form/FieldError";
 import type { GatedPost } from "@/lib/queries/posts";
@@ -33,6 +34,7 @@ vi.mock("@/actions/profile", () => ({
 }));
 
 vi.mock("@/lib/analytics", () => ({ track: vi.fn() }));
+vi.mock("@/app/auth/actions", () => ({ signOut: vi.fn() }));
 
 const author = { username: "mara", display_name: "Mara", avatar_path: null };
 
@@ -291,12 +293,17 @@ describe("navigation", () => {
     expect(screen.getByRole("searchbox", { name: "Search posts" })).toHaveValue("airboat");
   });
 
-  it("shows sign in links when logged out and a profile link when logged in", () => {
-    const { rerender } = render(<HeaderBar username={null} avatarUrl={null} shieldEnabled={false} shieldProgress={0} />);
+  it("shows sign in links when logged out and the account menu when logged in", () => {
+    const { unmount } = render(
+      <HeaderBar username={null} avatarUrl={null} shieldEnabled={false} shieldProgress={0} />,
+    );
     expect(screen.getByRole("link", { name: "Sign up" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Account/ })).not.toBeInTheDocument();
+    unmount();
 
-    rerender(<HeaderBar username="mara" avatarUrl={null} shieldEnabled={false} shieldProgress={0} />);
-    expect(screen.getByRole("link", { name: /mara/ })).toHaveAttribute("href", "/u/mara");
+    render(<HeaderBar username="mara" avatarUrl={null} shieldEnabled={false} shieldProgress={0} />);
+    expect(screen.getByRole("button", { name: "Account: mara" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Sign up" })).not.toBeInTheDocument();
   });
 
   it("lists the viewer's groups in the rail only when signed in", () => {
@@ -368,5 +375,42 @@ describe("CopyField", () => {
 
     expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/g/join/NIGHTRUN`);
     expect(await screen.findByRole("button", { name: "Copied" })).toBeInTheDocument();
+  });
+});
+
+describe("UserMenu", () => {
+  it("keeps the menu shut until asked", () => {
+    render(<UserMenu username="mara" avatarUrl={null} />);
+
+    const trigger = screen.getByRole("button", { name: "Account: mara" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+  });
+
+  it("offers the profile, settings, and a way out", async () => {
+    render(<UserMenu username="mara" avatarUrl={null} />);
+    await userEvent.click(screen.getByRole("button", { name: "Account: mara" }));
+
+    const menu = screen.getByRole("menu", { name: "Account" });
+    expect(within(menu).getByRole("menuitem", { name: "Your profile" })).toHaveAttribute("href", "/u/mara");
+    expect(within(menu).getByRole("menuitem", { name: "Settings" })).toHaveAttribute("href", "/settings");
+    expect(within(menu).getByRole("menuitem", { name: "Sign out" })).toBeInTheDocument();
+  });
+
+  it("submits the sign out action rather than navigating", async () => {
+    render(<UserMenu username="mara" avatarUrl={null} />);
+    await userEvent.click(screen.getByRole("button", { name: "Account: mara" }));
+
+    const signOutButton = screen.getByRole("menuitem", { name: "Sign out" });
+    expect(signOutButton).toHaveAttribute("type", "submit");
+    expect(signOutButton.closest("form")).not.toBeNull();
+  });
+
+  it("closes on Escape", async () => {
+    render(<UserMenu username="mara" avatarUrl={null} />);
+    await userEvent.click(screen.getByRole("button", { name: "Account: mara" }));
+
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
   });
 });

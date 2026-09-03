@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Wordmark } from "../brand/Wordmark";
-import { Avatar } from "../Avatar";
 import { SearchBox } from "./SearchBox";
 import { ShieldPill } from "./ShieldPill";
+import { UserMenu } from "./UserMenu";
 
 type HeaderBarProps = {
   username: string | null;
@@ -26,10 +26,7 @@ export function HeaderBar({ username, avatarUrl, shieldEnabled, shieldProgress, 
       <ShieldPill enabled={shieldEnabled} progress={shieldProgress} />
 
       {username ? (
-        <Link href={`/u/${username}`} className="flex shrink-0 items-center gap-2 text-sm text-text-secondary">
-          <Avatar username={username} url={avatarUrl} size={28} />
-          <span className="hidden sm:inline">{username}</span>
-        </Link>
+        <UserMenu username={username} avatarUrl={avatarUrl} />
       ) : (
         <div className="flex shrink-0 items-center gap-2">
           <Link href="/auth/sign-in" className="text-sm font-medium text-text-secondary">

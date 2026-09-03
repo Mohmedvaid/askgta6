@@ -76,3 +76,17 @@ test("404 stays on brand", async ({ page }) => {
   expect(response?.status()).toBe(404);
   await expect(page.getByRole("heading", { name: "Nothing at this address" })).toBeVisible();
 });
+
+test.describe("sign out", () => {
+  test("is not offered to a reader who is not signed in", async ({ page }) => {
+    await page.goto("/feed");
+
+    await expect(page.getByRole("button", { name: /Account:/ })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
+  });
+
+  test("sends a signed out visitor away from settings rather than showing the button", async ({ page }) => {
+    await page.goto("/settings");
+    await expect(page).toHaveURL(/\/auth\/sign-in/);
+  });
+});

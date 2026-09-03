@@ -5,6 +5,7 @@ import { AvatarForm } from "@/components/form/AvatarForm";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { ShieldControls } from "@/components/shell/ShieldControls";
 import { getShieldState, getViewer } from "@/lib/viewer";
+import { signOut } from "@/app/auth/actions";
 import { avatarUrl } from "@/lib/queries/profiles";
 import { NOINDEX } from "@/lib/indexing";
 
@@ -52,8 +53,14 @@ export default async function SettingsPage() {
 
       <section className="space-y-4 border-t border-border pt-8">
         <h2 className="font-display text-sm font-semibold tracking-widest text-text-muted uppercase">Session</h2>
-        <form action="/auth/sign-out" method="post">
-          <button type="submit" className="rounded-md border border-border px-4 py-2 text-sm font-semibold text-text-secondary">
+        <p className="text-sm text-text-secondary">
+          Signing out clears the session in this browser and returns you to the landing page.
+        </p>
+        <form action={signOut}>
+          <button
+            type="submit"
+            className="rounded-md border border-border px-4 py-2 text-sm font-semibold text-text-secondary"
+          >
             Sign out
           </button>
         </form>

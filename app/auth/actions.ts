@@ -5,15 +5,13 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { type ActionResult } from "@/lib/validation";
 import { adoptAnonymousShield } from "@/lib/adopt-progress";
+import { logAuthError, reportAuthError } from "@/lib/auth-errors";
+import { authCallbackUrl } from "@/lib/auth-callback";
 
 const credentials = z.object({
   email: z.string().trim().email("Enter a valid email address."),
   password: z.string().min(8, "Passwords are at least 8 characters."),
 });
-
-function siteUrl(): string {
-  return process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-}
 
 export async function signIn(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const parsed = credentials.safeParse({
@@ -24,7 +22,7 @@ export async function signIn(_state: ActionResult | null, formData: FormData): P
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
-  if (error) return { ok: false, error: "That email and password do not match an account." };
+  if (error) return { ok: false, error: reportAuthError("signIn", error) };
 
   redirect(String(formData.get("next") ?? "/feed"));
 }
@@ -39,10 +37,10 @@ export async function signUp(_state: ActionResult | null, formData: FormData): P
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signUp({
     ...parsed.data,
-    options: { emailRedirectTo: `${siteUrl()}/auth/callback` },
+    options: { emailRedirectTo: authCallbackUrl() },
   });
 
-  if (error) return { ok: false, error: "That account could not be created. Try a different email." };
+  if (error) return { ok: false, error: reportAuthError("signUp", error) };
   if (!data.session || !data.user) return { ok: true, data: undefined };
 
   // Whatever level they picked as a guest follows them into the account.
@@ -58,10 +56,10 @@ export async function sendMagicLink(_state: ActionResult | null, formData: FormD
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithOtp({
     email: email.data,
-    options: { emailRedirectTo: `${siteUrl()}/auth/callback` },
+    options: { emailRedirectTo: authCallbackUrl() },
   });
 
-  if (error) return { ok: false, error: "That link could not be sent. Try again in a minute." };
+  if (error) return { ok: false, error: reportAuthError("sendMagicLink", error) };
   return { ok: true, data: undefined };
 }
 
@@ -70,16 +68,27 @@ export async function signInWithProvider(formData: FormData): Promise<void> {
   if (provider !== "discord" && provider !== "google") return;
 
   const supabase = await createSupabaseServerClient();
-  const { data } = await supabase.auth.signInWithOAuth({
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
-    options: { redirectTo: `${siteUrl()}/auth/callback` },
+    options: { redirectTo: authCallbackUrl() },
   });
+
+  if (error) {
+    logAuthError(`signInWithProvider:${provider}`, error);
+    redirect("/auth/sign-in?error=provider");
+  }
 
   if (data?.url) redirect(data.url);
 }
 
+/**
+ * Clears the session and drops the reader back on the landing page. Used by the
+ * header menu and by settings, so there is one path out of an account.
+ */
 export async function signOut(): Promise<void> {
   const supabase = await createSupabaseServerClient();
-  await supabase.auth.signOut();
+  const { error } = await supabase.auth.signOut();
+  logAuthError("signOut", error);
+
   redirect("/");
 }
