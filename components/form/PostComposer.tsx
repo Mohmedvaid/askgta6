@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { SpoilerLevelControl } from "../SpoilerLevelControl";
 import { SubmitButton } from "./SubmitButton";
 import { FieldError } from "./FieldError";
+import { Honeypot } from "./Honeypot";
 import { TOPICS, TOPIC_LABELS } from "@/lib/topics";
 import type { ActionResult } from "@/lib/validation";
 import { track } from "@/lib/analytics";
@@ -51,7 +52,8 @@ export function PostComposer({ action, defaults, submitLabel }: PostComposerProp
   };
 
   return (
-    <form action={formAction} onSubmit={announce} className="space-y-6">
+    <form action={formAction} onSubmit={announce} className="relative space-y-6">
+      <Honeypot />
       {defaults.postId ? <input type="hidden" name="postId" value={defaults.postId} /> : null}
       {defaults.groupId ? <input type="hidden" name="groupId" value={defaults.groupId} /> : null}
 

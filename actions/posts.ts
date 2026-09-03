@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/viewer";
 import { firstIssue, postEditSchema, postInputSchema, type ActionResult } from "@/lib/validation";
+import { honeypotTripped } from "@/lib/honeypot";
 
 function readForm(formData: FormData) {
   return {
@@ -26,6 +27,9 @@ function describe(message: string): string {
 export async function createPost(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const viewer = await getViewer();
   if (!viewer) return { ok: false, error: "Sign in to post." };
+
+  // Nothing is written and nothing is explained. A person never sees this.
+  if (honeypotTripped(formData)) return { ok: false, error: "That post could not be saved." };
 
   const parsed = postInputSchema.safeParse(readForm(formData));
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };

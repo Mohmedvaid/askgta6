@@ -4,10 +4,13 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/viewer";
 import { firstIssue, replyInputSchema, type ActionResult } from "@/lib/validation";
+import { honeypotTripped } from "@/lib/honeypot";
 
 export async function createReply(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const viewer = await getViewer();
   if (!viewer) return { ok: false, error: "Sign in to reply." };
+
+  if (honeypotTripped(formData)) return { ok: false, error: "That reply could not be saved." };
 
   const parsed = replyInputSchema.safeParse({
     postId: String(formData.get("postId") ?? ""),

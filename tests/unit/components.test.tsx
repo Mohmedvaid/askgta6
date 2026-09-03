@@ -10,6 +10,8 @@ import { SpoilerLevelControl } from "@/components/SpoilerLevelControl";
 import { TopicBadge } from "@/components/TopicBadge";
 import { SpoilerDemo } from "@/components/SpoilerDemo";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { Honeypot } from "@/components/form/Honeypot";
+import { HONEYPOT_FIELD } from "@/lib/honeypot";
 import { PostCard } from "@/components/post/PostCard";
 import { PostBody } from "@/components/post/PostBody";
 import { PostList } from "@/components/post/PostList";
@@ -282,6 +284,32 @@ describe("JsonLd", () => {
     expect(script).toHaveAttribute("type", "application/ld+json");
     expect(script?.innerHTML).not.toContain("</script>");
     expect(JSON.parse(script?.textContent ?? "{}")).toEqual({ name: "</script><img onerror=x>" });
+  });
+});
+
+describe("Honeypot", () => {
+  it("is out of the accessibility tree and out of the tab order", () => {
+    const { container } = render(<Honeypot />);
+
+    const wrapper = container.querySelector('div[aria-hidden="true"]');
+    expect(wrapper).not.toBeNull();
+
+    const input = container.querySelector(`input[name="${HONEYPOT_FIELD}"]`);
+    expect(input).not.toBeNull();
+    expect(wrapper?.contains(input!)).toBe(true);
+    expect(input).toHaveAttribute("tabindex", "-1");
+    expect(input).toHaveAttribute("autocomplete", "off");
+    expect(input).toHaveValue("");
+  });
+
+  it("is moved off screen rather than hidden, so a form filler still fills it", () => {
+    const { container } = render(<Honeypot />);
+    const wrapper = container.querySelector('div[aria-hidden="true"]');
+
+    expect(wrapper?.className).toContain("left-[-9999px]");
+    // display:none and visibility:hidden are the two a form filler skips.
+    expect(wrapper?.className.split(" ")).not.toContain("hidden");
+    expect(wrapper).toBeVisible();
   });
 });
 

@@ -33,6 +33,7 @@ const { castVote, getMyVote } = await import("@/actions/votes");
 const { createPost, editPost } = await import("@/actions/posts");
 const { createReply } = await import("@/actions/replies");
 const { submitReport } = await import("@/actions/reports");
+const { HONEYPOT_FIELD } = await import("@/lib/honeypot");
 const { createGroup, redeemInvite } = await import("@/actions/groups");
 const { saveProfile, setSpoilerShield, uploadAvatar } = await import("@/actions/profile");
 const { completeOnboarding } = await import("@/actions/onboarding");
@@ -504,5 +505,38 @@ describe("moderation", () => {
       ok: false,
       error: "That item could not be deleted.",
     });
+  });
+});
+
+describe("the composer honeypot", () => {
+  beforeEach(() => {
+    viewer.current = SIGNED_IN;
+    holder.client = createFakeClient({ tables: { posts: { data: { id: UUID }, error: null } } });
+  });
+
+  it("writes no post and says nothing about why", async () => {
+    const data = validPost();
+    data.set(HONEYPOT_FIELD, "https://spam.example");
+
+    expect(await createPost(null, data)).toEqual({ ok: false, error: "That post could not be saved." });
+    expect(holder.client.calls).toHaveLength(0);
+  });
+
+  it("writes no reply either", async () => {
+    const data = new FormData();
+    data.set("postId", UUID);
+    data.set("body", "A reply a bot wrote.");
+    data.set("spoilerLevel", "0");
+    data.set(HONEYPOT_FIELD, "x");
+
+    expect(await createReply(null, data)).toEqual({ ok: false, error: "That reply could not be saved." });
+    expect(holder.client.calls).toHaveLength(0);
+  });
+
+  it("lets a real post through with the field left alone", async () => {
+    const data = validPost();
+    data.set(HONEYPOT_FIELD, "");
+
+    expect(await captureRedirect(() => createPost(null, data))).toBe(`/p/${UUID}`);
   });
 });

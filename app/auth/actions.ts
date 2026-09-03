@@ -7,6 +7,7 @@ import { type ActionResult } from "@/lib/validation";
 import { adoptAnonymousShield } from "@/lib/adopt-progress";
 import { logAuthError, reportAuthError } from "@/lib/auth-errors";
 import { authCallbackUrl } from "@/lib/auth-callback";
+import { honeypotTripped } from "@/lib/honeypot";
 
 const credentials = z.object({
   email: z.string().trim().email("Enter a valid email address."),
@@ -28,6 +29,9 @@ export async function signIn(_state: ActionResult | null, formData: FormData): P
 }
 
 export async function signUp(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  // The same answer a real signup gets, so a bot cannot tell it was caught.
+  if (honeypotTripped(formData)) return { ok: true, data: undefined };
+
   const parsed = credentials.safeParse({
     email: String(formData.get("email") ?? ""),
     password: String(formData.get("password") ?? ""),
@@ -50,6 +54,8 @@ export async function signUp(_state: ActionResult | null, formData: FormData): P
 }
 
 export async function sendMagicLink(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  if (honeypotTripped(formData)) return { ok: true, data: undefined };
+
   const email = z.string().trim().email().safeParse(String(formData.get("email") ?? ""));
   if (!email.success) return { ok: false, error: "Enter a valid email address." };
 

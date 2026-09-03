@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { SubmitButton } from "./SubmitButton";
 import { FieldError } from "./FieldError";
+import { Honeypot } from "./Honeypot";
 import { sendMagicLink, signIn, signInWithProvider, signUp } from "@/app/auth/actions";
 
 const inputClass =
@@ -34,7 +35,8 @@ export function AuthForm({ mode, next, discordEnabled, googleEnabled }: AuthForm
         </p>
       </div>
 
-      <form action={formAction} className="space-y-4">
+      <form action={formAction} className="relative space-y-4">
+        {signingIn ? null : <Honeypot />}
         {next ? <input type="hidden" name="next" value={next} /> : null}
 
         <div>
@@ -66,7 +68,8 @@ export function AuthForm({ mode, next, discordEnabled, googleEnabled }: AuthForm
         <SubmitButton label={signingIn ? "Sign in" : "Create account"} pendingLabel="Working" />
       </form>
 
-      <form action={linkAction} className="space-y-3 border-t border-border pt-6">
+      <form action={linkAction} className="relative space-y-3 border-t border-border pt-6">
+        <Honeypot />
         <label htmlFor="magic-email" className="text-sm font-semibold text-text-primary">
           Or get a sign in link
         </label>

@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import { SpoilerLevelControl } from "../SpoilerLevelControl";
 import { SubmitButton } from "./SubmitButton";
 import { FieldError } from "./FieldError";
+import { Honeypot } from "./Honeypot";
 import { createReply } from "@/actions/replies";
 
 type ReplyComposerProps = {
@@ -24,7 +25,8 @@ export function ReplyComposer({ postId, defaultSpoilerLevel }: ReplyComposerProp
   }
 
   return (
-    <form action={formAction} className="space-y-5">
+    <form action={formAction} className="relative space-y-5">
+      <Honeypot />
       <input type="hidden" name="postId" value={postId} />
 
       <div>

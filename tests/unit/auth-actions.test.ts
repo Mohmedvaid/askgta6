@@ -34,6 +34,7 @@ vi.mock("next/navigation", () => ({
 
 const { sendMagicLink, signIn, signOut, signUp } = await import("@/app/auth/actions");
 const { authCallbackUrl } = await import("@/lib/auth-callback");
+const { HONEYPOT_FIELD } = await import("@/lib/honeypot");
 
 let logged: unknown[][] = [];
 
@@ -189,5 +190,26 @@ describe("signOut", () => {
 
     expect(await captureRedirect(() => signOut())).toBe("/");
     expect(String(logged[0]![0])).toBe("[auth] signOut failed");
+  });
+});
+
+describe("the signup honeypot", () => {
+  it("answers a tripped signup exactly as it answers a real one, and creates nothing", async () => {
+    const result = await signUp(null, form({ ...VALID, [HONEYPOT_FIELD]: "https://spam.example" }));
+
+    expect(result).toEqual({ ok: true, data: undefined });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("answers a tripped magic link the same way, so no email is sent", async () => {
+    const result = await sendMagicLink(null, form({ email: VALID.email, [HONEYPOT_FIELD]: "x" }));
+
+    expect(result).toEqual({ ok: true, data: undefined });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("lets a real signup through when the field is left alone", async () => {
+    await signUp(null, form({ ...VALID, [HONEYPOT_FIELD]: "" }));
+    expect(calls.map((call) => call.method)).toContain("signUp");
   });
 });
