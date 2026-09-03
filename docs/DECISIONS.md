@@ -43,6 +43,15 @@ One line each: what was chosen, what was rejected, why.
 - **No form library.** No form has more than four fields.
 - **The username shape is declared once, in `lib/username.ts`.** `profileSchema` refines against `isValidUsername` rather than repeating the regex, and both username inputs run `normalizeUsername` as you type so the inline error is rare. The database check constraint is the third copy and the only one that has to be kept in step by hand.
 
+## Indexing
+
+- **Noindex is the default in the root layout, and indexable pages opt in.** Rejected making the root indexable and marking the private pages: forgetting an opt out leaks a page, forgetting an opt in only costs traffic. The failure modes are not symmetric.
+- **`NEXT_PUBLIC_INDEXING` is read through a function, not a module constant.** Next inlines the value at build time either way, but a function is testable: the suite flips the variable and asserts the directive both ways.
+- **The permanent noindex list does not depend on inheritance.** Every private page sets `robots: NOINDEX` explicitly, `next.config.ts` sends `X-Robots-Tag: noindex, nofollow` for the same path patterns even when the flag is on, and `robots.txt` disallows them. Three independent layers, because one edit to the root default should not silently open the admin queue.
+- **A post is indexable only at spoiler level 0, a group only when public, a profile only when it has at least one post a logged out reader can read.** A profile whose every post is sealed has nothing to index, and indexing it would be an invitation to crawl placeholders.
+- **A feed search result page is noindex even with the flag on.** Arbitrary query permutations are index bloat, and nobody searches for them.
+- **The sitemap is empty while the flag is off.** When on it lists the landing page, the feed, the groups index, public groups, and level 0 posts, capped at 2000 posts.
+
 ## Testing
 
 - **pglite for the database suite.** Docker is not available in the build environment. `tests/db/supabase-shim.sql` creates the small part of a Supabase project that migrations depend on: an `auth` schema, `auth.users`, `auth.uid()`, and the `anon`, `authenticated`, and `service_role` roles. Grants are written out explicitly in `0006_rls.sql` so the harness gets the same permissions a real project does.

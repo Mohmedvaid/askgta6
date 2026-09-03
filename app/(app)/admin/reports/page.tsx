@@ -5,8 +5,9 @@ import { Empty } from "@/components/Empty";
 import { ModerationRow } from "@/components/ModerationRow";
 import { createSupabaseAdminClient, isAdmin } from "@/lib/supabase/admin";
 import { getViewer } from "@/lib/viewer";
+import { NOINDEX } from "@/lib/indexing";
 
-export const metadata: Metadata = { title: "Reports" };
+export const metadata: Metadata = { title: "Reports", robots: NOINDEX };
 
 type ReportRow = { target_type: "post" | "reply"; target_id: string; reason: string; note: string | null };
 

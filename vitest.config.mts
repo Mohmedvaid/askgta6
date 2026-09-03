@@ -5,7 +5,12 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: { "@": path.resolve(process.cwd()) },
+    alias: {
+      "@": path.resolve(process.cwd()),
+      // "server-only" throws on import outside a Next server build. Tests that
+      // exercise server modules need it to be a no-op.
+      "server-only": path.resolve(process.cwd(), "tests/unit/server-only-stub.ts"),
+    },
   },
   test: {
     globals: true,

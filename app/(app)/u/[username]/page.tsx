@@ -12,13 +12,23 @@ import { listRepliesByAuthor } from "@/lib/queries/replies";
 import { getViewerProgress } from "@/lib/viewer";
 import { renderMarkdown } from "@/lib/markdown";
 import { monthAndYear, relativeTime } from "@/lib/relative-time";
+import { profileIsIndexable, robotsFor } from "@/lib/indexing";
 
 type Params = Promise<{ username: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { username } = await params;
-  return { title: username };
+  const profile = await getProfileByUsername(username);
+  // Read the profile the way a logged out visitor would. A profile whose every
+  // post is gated has nothing a search engine could usefully index.
+  const ungated = profile ? await listPosts({ authorId: profile.id }, 0) : null;
+  const hasUngatedPosts = Boolean(ungated?.items.some((post) => !post.hidden));
+
+  return {
+    title: username,
+    robots: robotsFor(profileIsIndexable(Boolean(profile), hasUngatedPosts)),
+  };
 }
 
 export default async function ProfilePage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {

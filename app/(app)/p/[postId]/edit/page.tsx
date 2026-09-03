@@ -4,8 +4,9 @@ import { PostComposer } from "@/components/form/PostComposer";
 import { editPost } from "@/actions/posts";
 import { getPostRaw } from "@/lib/queries/posts";
 import { getViewer } from "@/lib/viewer";
+import { NOINDEX } from "@/lib/indexing";
 
-export const metadata: Metadata = { title: "Edit post" };
+export const metadata: Metadata = { title: "Edit post", robots: NOINDEX };
 
 export default async function EditPostPage({ params }: { params: Promise<{ postId: string }> }) {
   const { postId } = await params;

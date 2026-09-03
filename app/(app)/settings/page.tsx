@@ -5,8 +5,9 @@ import { AvatarForm } from "@/components/form/AvatarForm";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { getViewer } from "@/lib/viewer";
 import { avatarUrl } from "@/lib/queries/profiles";
+import { NOINDEX } from "@/lib/indexing";
 
-export const metadata: Metadata = { title: "Settings" };
+export const metadata: Metadata = { title: "Settings", robots: NOINDEX };
 
 export default async function SettingsPage() {
   const viewer = await getViewer();

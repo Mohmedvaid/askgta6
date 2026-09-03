@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { NEVER_INDEXED_SOURCES, indexingEnabled } from "./lib/indexing";
 
 const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 
@@ -15,9 +16,15 @@ const contentSecurityPolicy = [
   "form-action 'self'",
 ].join("; ");
 
+const NOINDEX_HEADER = { key: "X-Robots-Tag", value: "noindex, nofollow" };
+
 const nextConfig: NextConfig = {
   async headers() {
     return [
+      // Belt and braces: while indexing is off the whole site carries the header,
+      // and the private routes carry it even after the flag is turned on.
+      ...(indexingEnabled() ? [] : [{ source: "/:path*", headers: [NOINDEX_HEADER] }]),
+      ...NEVER_INDEXED_SOURCES.map((source) => ({ source, headers: [NOINDEX_HEADER] })),
       {
         source: "/:path*",
         headers: [

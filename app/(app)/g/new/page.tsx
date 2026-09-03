@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { GroupComposer } from "@/components/group/GroupComposer";
 import { getViewer } from "@/lib/viewer";
+import { NOINDEX } from "@/lib/indexing";
 
-export const metadata: Metadata = { title: "Create a group" };
+export const metadata: Metadata = { title: "Create a group", robots: NOINDEX };
 
 export default async function NewGroupPage() {
   const viewer = await getViewer();

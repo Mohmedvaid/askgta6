@@ -17,6 +17,7 @@ import { getMyVote } from "@/actions/votes";
 import { acceptReply, deletePost } from "@/actions/posts";
 import { deleteReply } from "@/actions/replies";
 import { relativeTime } from "@/lib/relative-time";
+import { postIsIndexable, robotsFor } from "@/lib/indexing";
 
 type Params = Promise<{ postId: string }>;
 
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { postId } = await params;
   // Metadata is generated at level 0 on purpose, so a link preview can never spoil.
   const post = await getPost(postId, 0);
-  if (!post) return { title: "Post not found" };
+  if (!post) return { title: "Post not found", robots: robotsFor(false) };
 
   const title = post.hidden ? "Spoiler tagged post" : post.title;
   const description = post.hidden
@@ -34,6 +35,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return {
     title,
     description,
+    robots: robotsFor(postIsIndexable(post)),
     openGraph: {
       title,
       description,

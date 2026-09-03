@@ -1,5 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Wordmark } from "@/components/brand/Wordmark";
+import { NOINDEX } from "@/lib/indexing";
+
+export const metadata: Metadata = { robots: NOINDEX };
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (

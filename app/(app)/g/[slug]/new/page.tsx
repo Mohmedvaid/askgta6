@@ -4,8 +4,9 @@ import { PostComposer } from "@/components/form/PostComposer";
 import { createPost } from "@/actions/posts";
 import { getGroupBySlug, isMember } from "@/lib/queries/groups";
 import { getViewer } from "@/lib/viewer";
+import { NOINDEX } from "@/lib/indexing";
 
-export const metadata: Metadata = { title: "New group post" };
+export const metadata: Metadata = { title: "New group post", robots: NOINDEX };
 
 export default async function NewGroupPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;

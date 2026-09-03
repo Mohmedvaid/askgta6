@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { OnboardingForm } from "@/components/form/OnboardingForm";
 import { getViewer } from "@/lib/viewer";
 import { isPlaceholderUsername } from "@/lib/username";
+import { NOINDEX } from "@/lib/indexing";
 
-export const metadata: Metadata = { title: "Pick a name" };
+export const metadata: Metadata = { title: "Pick a name", robots: NOINDEX };
 
 export default async function OnboardingPage() {
   const viewer = await getViewer();

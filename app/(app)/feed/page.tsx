@@ -5,14 +5,18 @@ import { PostList } from "@/components/post/PostList";
 import { listPosts, type FeedTab } from "@/lib/queries/posts";
 import { getViewerProgress } from "@/lib/viewer";
 import { isTopic } from "@/lib/topics";
-
-export const metadata: Metadata = { title: "Feed" };
+import { feedIsIndexable, robotsFor } from "@/lib/indexing";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function single(value: string | string[] | undefined): string | null {
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
+}
+
+export async function generateMetadata({ searchParams }: { searchParams: SearchParams }): Promise<Metadata> {
+  const search = single((await searchParams).q);
+  return { title: "Feed", robots: robotsFor(feedIsIndexable(search)) };
 }
 
 export default async function FeedPage({ searchParams }: { searchParams: SearchParams }) {

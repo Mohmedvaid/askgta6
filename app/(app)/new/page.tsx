@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { PostComposer } from "@/components/form/PostComposer";
 import { createPost } from "@/actions/posts";
 import { getViewer } from "@/lib/viewer";
+import { NOINDEX } from "@/lib/indexing";
 
-export const metadata: Metadata = { title: "New post" };
+export const metadata: Metadata = { title: "New post", robots: NOINDEX };
 
 export default async function NewPostPage() {
   const viewer = await getViewer();

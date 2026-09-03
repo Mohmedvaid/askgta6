@@ -3,8 +3,9 @@ import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/viewer";
 import { PrivateGroupGate } from "@/components/group/PrivateGroupGate";
+import { NOINDEX } from "@/lib/indexing";
 
-export const metadata: Metadata = { title: "Join a group" };
+export const metadata: Metadata = { title: "Join a group", robots: NOINDEX };
 
 export default async function JoinGroupPage({ params }: { params: Promise<{ code: string }> }) {
   const { code } = await params;

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Wordmark } from "@/components/brand/Wordmark";
@@ -5,6 +6,9 @@ import { SpoilerDemo } from "@/components/SpoilerDemo";
 import { PostCard } from "@/components/post/PostCard";
 import { listPosts } from "@/lib/queries/posts";
 import { getViewer } from "@/lib/viewer";
+import { robotsFor } from "@/lib/indexing";
+
+export const metadata: Metadata = { robots: robotsFor(true) };
 
 export default async function LandingPage() {
   const viewer = await getViewer();

@@ -10,6 +10,7 @@ import { getGroupBySlug, isMember, listInvites } from "@/lib/queries/groups";
 import { listPosts, type FeedTab } from "@/lib/queries/posts";
 import { getViewer } from "@/lib/viewer";
 import { isTopic } from "@/lib/topics";
+import { groupIsIndexable, robotsFor } from "@/lib/indexing";
 
 type Params = Promise<{ slug: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -22,7 +23,8 @@ function single(value: string | string[] | undefined): string | null {
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
   const group = await getGroupBySlug(slug);
-  return { title: group?.name ?? "Group" };
+  // A private group the viewer cannot see comes back null, so it is never indexable.
+  return { title: group?.name ?? "Group", robots: robotsFor(groupIsIndexable(group)) };
 }
 
 export default async function GroupPage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {

@@ -76,6 +76,14 @@ Everything visual lives in one place each:
 - Logo: `components/brand/Wordmark.tsx` and `components/brand/Mark.tsx`, plus `app/icon.svg` for the favicon.
 - Spoiler level labels: `SPOILER_LEVELS` in `lib/spoilers.ts`. Rename them when the real story structure is public. The count stays at eight.
 
+## Indexing
+
+`NEXT_PUBLIC_INDEXING` is `off` everywhere by default. While it is off, `robots.txt` disallows everything, the sitemap is empty, every page emits `noindex, nofollow`, and `next.config.ts` adds an `X-Robots-Tag` header on every response. Setting it to `on` opens up exactly four things: the landing page, the feed, public groups, and level 0 posts and the profiles that have them.
+
+These stay noindex whatever the flag says: `/auth/*`, `/settings`, `/admin/*`, `/new`, `/g/*/new`, `/g/join/*`, `/onboarding`, private group pages, the 404 and error pages, and any post or profile whose content is gated above level 0 for a logged out reader.
+
+The value is inlined at build time, so changing it needs a rebuild.
+
 ## Moderation
 
 Five distinct reporters hide a post or a reply automatically. Users listed in `ADMIN_USER_IDS` can open `/admin/reports` to hide, unhide, or delete. That is the whole system. There is no roles table.
