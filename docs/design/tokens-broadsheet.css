@@ -1,0 +1,98 @@
+/*
+ * Direction 2: Broadsheet
+ *
+ * Type pairing: Fraunces for display, Public Sans for body, JetBrains Mono for code.
+ *
+ * This one argues that the site is a reference, not a feed. Fraunces is a soft
+ * serif with real optical sizing, so a thread title at 30px carries weight and
+ * warmth without shouting, and a list of forty titles reads as a contents page
+ * rather than a wall. Public Sans is a plain, wide, government issue grotesque
+ * chosen for the same reason a newspaper picks a boring text face: it disappears.
+ * The palette drops the blue cast entirely and sits on warm charcoal, with a
+ * green accent instead of orange because the orange in the live theme keeps
+ * reading as a warning next to the spoiler treatment. Spoiler seals become warm
+ * amber, which puts them nearer the danger end of the palette on purpose: a
+ * sealed body is a stop sign, not a decoration. The risk is that a serif at
+ * small sizes needs care, and that warm neutrals photograph as beige. This is
+ * the direction that will look best in six months and least impressive tonight.
+ *
+ * Drop this in as lib/theme/tokens.css, and set lib/theme/fonts.ts to:
+ *   Fraunces (500,600,700)       -> --font-display-face
+ *   Public_Sans (400,500,600,700)-> --font-body-face
+ *   JetBrains_Mono (400,500)     -> --font-mono-face
+ */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-0: oklch(0.18 0.008 70);
+  --surface-1: oklch(0.225 0.009 70);
+  --surface-2: oklch(0.28 0.011 70);
+
+  --text-primary: oklch(0.96 0.006 70);
+  --text-secondary: oklch(0.8 0.01 70);
+  --text-muted: oklch(0.64 0.012 70);
+
+  --border: oklch(0.33 0.01 70);
+  --border-strong: oklch(0.46 0.013 70);
+
+  --accent: oklch(0.76 0.14 150);
+  --accent-text: oklch(0.19 0.04 150);
+  --accent-bg: oklch(0.32 0.06 150);
+
+  --danger: oklch(0.67 0.19 25);
+  --warning: oklch(0.83 0.14 80);
+  --success: oklch(0.78 0.14 150);
+
+  --spoiler: oklch(0.79 0.13 68);
+  --spoiler-bg: oklch(0.3 0.055 68);
+
+  --shadow-card: 0 1px 2px oklch(0 0 0 / 0.35);
+  --shadow-raised: 0 8px 24px oklch(0 0 0 / 0.42);
+  --shadow-focus: 0 0 0 3px var(--accent-bg);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --surface-0: oklch(0.975 0.008 80);
+  --surface-1: oklch(0.995 0.004 80);
+  --surface-2: oklch(0.94 0.012 80);
+
+  --text-primary: oklch(0.24 0.01 70);
+  --text-secondary: oklch(0.44 0.012 70);
+  --text-muted: oklch(0.57 0.012 70);
+
+  --border: oklch(0.89 0.01 80);
+  --border-strong: oklch(0.75 0.014 80);
+
+  --accent: oklch(0.52 0.14 150);
+  --accent-text: oklch(0.99 0.008 150);
+  --accent-bg: oklch(0.92 0.05 150);
+
+  --danger: oklch(0.53 0.2 25);
+  --warning: oklch(0.62 0.14 75);
+  --success: oklch(0.5 0.13 150);
+
+  --spoiler: oklch(0.53 0.13 62);
+  --spoiler-bg: oklch(0.94 0.05 68);
+
+  --shadow-card: 0 1px 2px oklch(0.24 0.01 70 / 0.08);
+  --shadow-raised: 0 8px 24px oklch(0.24 0.01 70 / 0.12);
+  --shadow-focus: 0 0 0 3px var(--accent-bg);
+}
+
+:root {
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.625rem;
+
+  --font-display: var(--font-display-face), ui-serif, Georgia, serif;
+  --font-body: var(--font-body-face), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, SFMono-Regular, monospace;
+
+  --content-max: 44rem;
+  --rail-width: 15rem;
+  --context-width: 19rem;
+}

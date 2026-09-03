@@ -1,0 +1,99 @@
+/*
+ * Direction 3: Terminal
+ *
+ * Type pairing: Space Grotesk for display, IBM Plex Sans for body, IBM Plex Mono for code.
+ *
+ * The quietest of the three, and the one that treats the forum as a tool. Space
+ * Grotesk has the squared off counters and shortened descenders of a technical
+ * grotesque, so headings feel labelled rather than announced, which suits a site
+ * whose headings are mostly questions. IBM Plex Sans below it is from the same
+ * family tree as the mono, so a code block sits inside a paragraph without a
+ * visible seam, and this is a forum where people paste mission names, coordinates,
+ * and settings. The palette is near neutral, almost no chroma in the surfaces,
+ * with one acid green accent doing all the work and a violet spoiler treatment
+ * kept from the live theme because it is the one thing there that already works.
+ * Radii are the tightest of the three. The risk is that it is cold: a game
+ * community that looks like a bug tracker may read as somebody else's tool
+ * rather than a place to hang around, and the single accent gives no room to
+ * grow a second one later.
+ *
+ * Drop this in as lib/theme/tokens.css, and set lib/theme/fonts.ts to:
+ *   Space_Grotesk (500,600,700)    -> --font-display-face
+ *   IBM_Plex_Sans (400,500,600,700)-> --font-body-face
+ *   IBM_Plex_Mono (400,500)        -> --font-mono-face
+ */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-0: oklch(0.15 0.003 250);
+  --surface-1: oklch(0.195 0.004 250);
+  --surface-2: oklch(0.25 0.005 250);
+
+  --text-primary: oklch(0.95 0.002 250);
+  --text-secondary: oklch(0.78 0.004 250);
+  --text-muted: oklch(0.61 0.006 250);
+
+  --border: oklch(0.3 0.005 250);
+  --border-strong: oklch(0.43 0.007 250);
+
+  --accent: oklch(0.85 0.18 130);
+  --accent-text: oklch(0.16 0.05 130);
+  --accent-bg: oklch(0.3 0.08 130);
+
+  --danger: oklch(0.66 0.2 25);
+  --warning: oklch(0.83 0.15 88);
+  --success: oklch(0.8 0.17 145);
+
+  --spoiler: oklch(0.66 0.14 295);
+  --spoiler-bg: oklch(0.26 0.06 295);
+
+  --shadow-card: 0 1px 0 oklch(0 0 0 / 0.5);
+  --shadow-raised: 0 6px 20px oklch(0 0 0 / 0.55);
+  --shadow-focus: 0 0 0 3px var(--accent-bg);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --surface-0: oklch(0.97 0.002 250);
+  --surface-1: oklch(1 0 0);
+  --surface-2: oklch(0.935 0.003 250);
+
+  --text-primary: oklch(0.2 0.004 250);
+  --text-secondary: oklch(0.4 0.005 250);
+  --text-muted: oklch(0.54 0.006 250);
+
+  --border: oklch(0.88 0.004 250);
+  --border-strong: oklch(0.73 0.006 250);
+
+  --accent: oklch(0.58 0.16 130);
+  --accent-text: oklch(0.99 0.01 130);
+  --accent-bg: oklch(0.92 0.07 130);
+
+  --danger: oklch(0.53 0.2 25);
+  --warning: oklch(0.62 0.15 80);
+  --success: oklch(0.52 0.15 145);
+
+  --spoiler: oklch(0.48 0.14 295);
+  --spoiler-bg: oklch(0.93 0.04 295);
+
+  --shadow-card: 0 1px 0 oklch(0.2 0.004 250 / 0.1);
+  --shadow-raised: 0 6px 20px oklch(0.2 0.004 250 / 0.14);
+  --shadow-focus: 0 0 0 3px var(--accent-bg);
+}
+
+:root {
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.375rem;
+
+  --font-display: var(--font-display-face), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-body-face), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, SFMono-Regular, monospace;
+
+  --content-max: 46rem;
+  --rail-width: 15rem;
+  --context-width: 19rem;
+}

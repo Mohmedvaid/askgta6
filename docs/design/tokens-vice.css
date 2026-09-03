@@ -1,0 +1,98 @@
+/*
+ * Direction 1: Vice
+ *
+ * Type pairing: Archivo Black for display, Inter for body, IBM Plex Mono for code.
+ *
+ * This is the loudest of the three and the closest to what the game itself looks
+ * like in its own marketing. Archivo Black is a heavy grotesque with almost no
+ * modulation, so a headline reads as a block of ink rather than a line of words,
+ * which is exactly how a neon sign behaves at night. Inter underneath is a
+ * deliberately neutral choice: with a display face this loud, anything with
+ * character in the body copy fights it, and a forum is thousands of lines of body
+ * copy. The palette is a deep violet base rather than a neutral grey, with hot
+ * pink as the accent and a cyan spoiler treatment, so the two things the reader
+ * has to spot fast, the action and the seal, are separated by hue as well as by
+ * shape. The risk is fatigue. A saturated base is easy to admire in a screenshot
+ * and tiring to read for an hour, and the pink accent sits close enough to the
+ * danger red that the two need checking side by side before this ships.
+ *
+ * Drop this in as lib/theme/tokens.css, and set lib/theme/fonts.ts to:
+ *   Archivo_Black (weight 400) -> --font-display-face
+ *   Inter (400,500,600,700)    -> --font-body-face
+ *   IBM_Plex_Mono (400,500)    -> --font-mono-face
+ */
+
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+
+  --surface-0: oklch(0.16 0.045 300);
+  --surface-1: oklch(0.21 0.055 300);
+  --surface-2: oklch(0.27 0.062 300);
+
+  --text-primary: oklch(0.97 0.008 320);
+  --text-secondary: oklch(0.81 0.025 320);
+  --text-muted: oklch(0.65 0.035 320);
+
+  --border: oklch(0.33 0.055 300);
+  --border-strong: oklch(0.46 0.075 300);
+
+  --accent: oklch(0.72 0.21 350);
+  --accent-text: oklch(0.16 0.05 350);
+  --accent-bg: oklch(0.34 0.11 350);
+
+  --danger: oklch(0.66 0.2 28);
+  --warning: oklch(0.84 0.16 92);
+  --success: oklch(0.78 0.16 165);
+
+  --spoiler: oklch(0.76 0.14 200);
+  --spoiler-bg: oklch(0.27 0.07 200);
+
+  --shadow-card: 0 1px 2px oklch(0 0 0 / 0.5);
+  --shadow-raised: 0 10px 30px oklch(0.1 0.06 300 / 0.6);
+  --shadow-focus: 0 0 0 3px var(--accent-bg);
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+
+  --surface-0: oklch(0.975 0.012 320);
+  --surface-1: oklch(1 0 0);
+  --surface-2: oklch(0.945 0.02 320);
+
+  --text-primary: oklch(0.21 0.05 300);
+  --text-secondary: oklch(0.42 0.045 300);
+  --text-muted: oklch(0.56 0.04 300);
+
+  --border: oklch(0.9 0.025 320);
+  --border-strong: oklch(0.76 0.045 320);
+
+  --accent: oklch(0.56 0.21 350);
+  --accent-text: oklch(0.99 0.01 350);
+  --accent-bg: oklch(0.92 0.07 350);
+
+  --danger: oklch(0.54 0.21 28);
+  --warning: oklch(0.64 0.16 82);
+  --success: oklch(0.52 0.15 165);
+
+  --spoiler: oklch(0.48 0.13 210);
+  --spoiler-bg: oklch(0.93 0.05 210);
+
+  --shadow-card: 0 1px 2px oklch(0.21 0.05 300 / 0.1);
+  --shadow-raised: 0 10px 30px oklch(0.21 0.05 300 / 0.16);
+  --shadow-focus: 0 0 0 3px var(--accent-bg);
+}
+
+:root {
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.875rem;
+
+  --font-display: var(--font-display-face), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-body-face), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, SFMono-Regular, monospace;
+
+  --content-max: 46rem;
+  --rail-width: 15rem;
+  --context-width: 19rem;
+}
