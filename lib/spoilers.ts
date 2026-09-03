@@ -1,9 +1,15 @@
 /**
  * The spoiler gate. Every read path that returns a post or a reply runs through
  * applySpoilerGate on the server, so hidden content never leaves the machine.
+ *
+ * The shield is opt in. A reader who has not turned it on gets everything in
+ * full, which is what most people want most of the time.
  */
 
 export const SPOILER_LEVEL_COUNT = 8;
+
+/** The shield is off until a reader asks for it. */
+export const SPOILER_SHIELD_DEFAULT = false;
 
 export type SpoilerLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -38,6 +44,18 @@ export function clampProgress(value: unknown): SpoilerLevel {
   return rounded as SpoilerLevel;
 }
 
+/**
+ * What a reader's shield resolves to. A level gates everything above it;
+ * NO_GATING is a reader with the shield off, for whom nothing is held back.
+ */
+export const NO_GATING = "none" as const;
+
+export type ViewerProgress = SpoilerLevel | typeof NO_GATING;
+
+export function isGating(progress: ViewerProgress): progress is SpoilerLevel {
+  return progress !== NO_GATING;
+}
+
 /** The shape the gate needs. Anything else on the record is passed through untouched. */
 export type Gateable = { spoiler_level: number; body: string; title?: string };
 
@@ -70,19 +88,23 @@ function redact(value: unknown): unknown {
 }
 
 /**
- * Returns the item as is when the viewer has reached its level, otherwise a copy
+ * Returns the item as is when the shield is off or the reader has reached its
+ * level, otherwise a copy
  * with the body removed and no hint of its length. The title, topic, kind, author,
  * counts, and timestamp all survive, because the placeholder is a real card.
  */
-export function applySpoilerGate<T extends Gateable>(item: T, viewerProgress: number): Gated<T> {
-  if (item.spoiler_level <= clampProgress(viewerProgress)) {
+export function applySpoilerGate<T extends Gateable>(item: T, viewerProgress: ViewerProgress): Gated<T> {
+  if (viewerProgress === NO_GATING || item.spoiler_level <= clampProgress(viewerProgress)) {
     return { ...item, hidden: false };
   }
 
   return { ...(redact(item) as Record<string, unknown>), hidden: true } as Gated<T>;
 }
 
-export function applySpoilerGateAll<T extends Gateable>(items: readonly T[], viewerProgress: number): Gated<T>[] {
+export function applySpoilerGateAll<T extends Gateable>(
+  items: readonly T[],
+  viewerProgress: ViewerProgress,
+): Gated<T>[] {
   return items.map((item) => applySpoilerGate(item, viewerProgress));
 }
 

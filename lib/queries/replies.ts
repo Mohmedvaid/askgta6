@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "../supabase/server";
-import { applySpoilerGateAll, type Gated } from "../spoilers";
+import { applySpoilerGateAll, type Gated, type ViewerProgress } from "../spoilers";
 import type { PostAuthor } from "./posts";
 
 const REPLY_COLUMNS = `
@@ -29,7 +29,7 @@ function normalize(row: Record<string, unknown>): ReplyRow {
 /** Accepted answer first, then most voted, then oldest. Each reply is gated on its own level. */
 export async function listReplies(
   postId: string,
-  viewerProgress: number,
+  viewerProgress: ViewerProgress,
   acceptedReplyId: string | null,
 ): Promise<GatedReply[]> {
   const supabase = await createSupabaseServerClient();
@@ -49,7 +49,7 @@ export async function listReplies(
   return applySpoilerGateAll(rows, viewerProgress);
 }
 
-export async function listRepliesByAuthor(authorId: string, viewerProgress: number): Promise<GatedReply[]> {
+export async function listRepliesByAuthor(authorId: string, viewerProgress: ViewerProgress): Promise<GatedReply[]> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("replies")

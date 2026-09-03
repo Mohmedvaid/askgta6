@@ -34,12 +34,20 @@ const { createPost, editPost } = await import("@/actions/posts");
 const { createReply } = await import("@/actions/replies");
 const { submitReport } = await import("@/actions/reports");
 const { createGroup, redeemInvite } = await import("@/actions/groups");
-const { saveProfile, setProgress, uploadAvatar } = await import("@/actions/profile");
+const { saveProfile, setSpoilerShield, uploadAvatar } = await import("@/actions/profile");
 const { completeOnboarding } = await import("@/actions/onboarding");
 const { moderate } = await import("@/actions/moderation");
 
 const UUID = "8b2f0f7a-1111-4222-8333-444455556666";
-const SIGNED_IN = { userId: "user-1", username: "mara", displayName: null, avatarPath: null, progress: 2, theme: "dark" };
+const SIGNED_IN = {
+  userId: "user-1",
+  username: "mara",
+  displayName: null,
+  avatarPath: null,
+  progress: 2,
+  shieldEnabled: false,
+  theme: "dark",
+};
 
 function form(fields: Record<string, string>): FormData {
   const data = new FormData();
@@ -353,15 +361,37 @@ describe("profile", () => {
     });
   });
 
-  it("sets progress through the function and refuses bad levels", async () => {
+  it("writes the shield and its level for a signed in reader", async () => {
     viewer.current = SIGNED_IN;
-    expect(await setProgress(null, form({ progress: "3" }))).toEqual({ ok: true, data: undefined });
-    expect(await setProgress(null, form({ progress: "9" }))).toMatchObject({ ok: false });
 
-    holder.client = createFakeClient({ rpc: { set_progress: { data: null, error: { message: "no" } } } });
-    expect(await setProgress(null, form({ progress: "3" }))).toEqual({
+    expect(await setSpoilerShield(null, form({ enabled: "true", progress: "3" }))).toEqual({
+      ok: true,
+      data: undefined,
+    });
+    expect(holder.client.calls.find((call) => call.method === "update")?.args[0]).toEqual({
+      progress: 3,
+      spoiler_shield: true,
+    });
+
+    holder.client = createFakeClient();
+    expect(await setSpoilerShield(null, form({ enabled: "false", progress: "3" }))).toEqual({
+      ok: true,
+      data: undefined,
+    });
+    expect(holder.client.calls.find((call) => call.method === "update")?.args[0]).toEqual({
+      progress: 3,
+      spoiler_shield: false,
+    });
+  });
+
+  it("refuses a level outside the list and reports a failed write", async () => {
+    viewer.current = SIGNED_IN;
+    expect(await setSpoilerShield(null, form({ enabled: "true", progress: "9" }))).toMatchObject({ ok: false });
+
+    holder.client = createFakeClient({ tables: { profiles: { data: null, error: { message: "no" } } } });
+    expect(await setSpoilerShield(null, form({ enabled: "true", progress: "3" }))).toEqual({
       ok: false,
-      error: "Your progress could not be saved.",
+      error: "Your spoiler shield could not be saved.",
     });
   });
 
@@ -407,24 +437,21 @@ describe("profile", () => {
 });
 
 describe("onboarding", () => {
-  it("saves a username and progress together", async () => {
-    expect(await completeOnboarding(null, form({ username: "mara", progress: "0" }))).toEqual({
+  it("saves the username only", async () => {
+    expect(await completeOnboarding(null, form({ username: "mara" }))).toEqual({
       ok: false,
       error: "Sign in first.",
     });
 
     viewer.current = SIGNED_IN;
-    expect(await completeOnboarding(null, form({ username: "mara", progress: "2" }))).toEqual({
-      ok: true,
-      data: undefined,
-    });
-    expect(await completeOnboarding(null, form({ username: "no", progress: "2" }))).toMatchObject({ ok: false });
-    expect(await completeOnboarding(null, form({ username: "mara", progress: "12" }))).toMatchObject({ ok: false });
+    expect(await completeOnboarding(null, form({ username: "mara" }))).toEqual({ ok: true, data: undefined });
+    expect(holder.client.calls.find((call) => call.method === "update")?.args[0]).toEqual({ username: "mara" });
+    expect(await completeOnboarding(null, form({ username: "no" }))).toMatchObject({ ok: false });
 
     holder.client = createFakeClient({
       tables: { profiles: { data: null, error: { message: "duplicate", code: "23505" } } },
     });
-    expect(await completeOnboarding(null, form({ username: "taken", progress: "0" }))).toEqual({
+    expect(await completeOnboarding(null, form({ username: "taken" }))).toEqual({
       ok: false,
       error: "That username is taken.",
     });

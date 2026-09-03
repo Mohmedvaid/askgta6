@@ -39,13 +39,17 @@ The database tests need no Docker. They boot Postgres in WebAssembly through pgl
 applySpoilerGate(item, viewerProgress)
 ```
 
-An item at or below the reader's progress comes back whole. Anything above it comes back with `body` deleted and `hidden: true` set. Everything else survives: title, topic, kind, author, counts, timestamp. Titles are visible at every level so a reader can tell what a thread is about before deciding to open it, which puts the burden on authors to keep spoilers out of titles. The composer says so, and `spoiler_in_title` is a report reason.
+The shield is opt in. `SPOILER_SHIELD_DEFAULT` is `false`, so a reader who has not turned it on gets `NO_GATING` and every post and reply comes back in full.
+
+With the shield on, an item at or below the reader's chapter comes back whole. Anything above it comes back with `body` deleted and `hidden: true` set. Everything else survives: title, topic, kind, author, counts, timestamp. Titles are visible at every level so a reader can tell what a thread is about before deciding to open it, which puts the burden on authors to keep spoilers out of titles. The composer says so, and `spoiler_in_title` is a report reason. The spoiler level badge is on every card and post whatever the shield is doing.
 
 There is no blanked body and no body length, because either one leaks. Redaction runs at any depth, so an embedded row cannot smuggle prose through.
 
 Every read of a post or a reply goes through `lib/queries/`, which calls the gate, so no page can reach the database without it. Reveals go through `revealContent`, return once, are held in component state, and never change the reader's progress.
 
-Progress itself has one reader, `getViewerProgress`. A signed in person's level comes from `profiles.progress`, a logged out one's from the `askgta6_progress` cookie (one year, SameSite=Lax), and a visitor who has never answered reads at 0. A first visit to any app page opens a one time bottom sheet asking where they are; walking away from it records 0 so it never asks twice. Signing up copies the cookie onto the new profile and drops it.
+The shield has one reader, `getViewerProgress`. A signed in person's state comes from `profiles.spoiler_shield` and `profiles.progress`, a logged out one's from the `askgta6_shield` and `askgta6_progress` cookies (one year, SameSite=Lax). Both default to off.
+
+The only control is the pill in the header: "Spoiler shield: off", or the chapter it is holding you at. Clicking it opens a popover with a toggle and the chapter list. Every change saves on the spot and refreshes, so the feed re-gates without a page load. The settings page carries the same control, and the two cannot disagree because they are the same component. Signing up copies the guest cookies onto the new profile and drops them.
 
 ## Layout
 

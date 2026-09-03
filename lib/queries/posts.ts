@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "../supabase/server";
-import { applySpoilerGate, applySpoilerGateAll, type Gated } from "../spoilers";
+import { applySpoilerGate, applySpoilerGateAll, type Gated, type ViewerProgress } from "../spoilers";
 import { decodeCursor, encodeCursor } from "../cursor";
 import type { PostKind, Topic } from "../topics";
 
@@ -63,7 +63,7 @@ function normalize(row: Record<string, unknown>): PostRow {
  * The single read path for lists of posts. Every caller gets gated rows back,
  * so a hidden post never carries a title or a body out of this module.
  */
-export async function listPosts(query: FeedQuery, viewerProgress: number): Promise<FeedPage> {
+export async function listPosts(query: FeedQuery, viewerProgress: ViewerProgress): Promise<FeedPage> {
   const supabase = await createSupabaseServerClient();
   const tab = query.tab ?? "latest";
 
@@ -136,7 +136,7 @@ export async function listPosts(query: FeedQuery, viewerProgress: number): Promi
 }
 
 /** One post, gated. Returns null when the viewer may not see the row at all. */
-export async function getPost(postId: string, viewerProgress: number): Promise<GatedPost | null> {
+export async function getPost(postId: string, viewerProgress: ViewerProgress): Promise<GatedPost | null> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from("posts").select(POST_COLUMNS).eq("id", postId).maybeSingle();
 

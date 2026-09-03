@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const createPost = vi.fn();
@@ -7,10 +7,10 @@ const createGroup = vi.fn();
 const createInvite = vi.fn();
 const redeemInvite = vi.fn();
 const saveProfile = vi.fn();
-const setProgress = vi.fn();
+const setSpoilerShield = vi.fn();
 const uploadAvatar = vi.fn();
 const completeOnboarding = vi.fn();
-const dismissProgressPrompt = vi.fn();
+const refresh = vi.fn();
 const signIn = vi.fn();
 const signUp = vi.fn();
 const sendMagicLink = vi.fn();
@@ -18,10 +18,10 @@ const push = vi.fn();
 const track = vi.fn();
 
 vi.mock("@/actions/groups", () => ({ createGroup, createInvite, redeemInvite }));
-vi.mock("@/actions/profile", () => ({ saveProfile, setProgress, uploadAvatar, dismissProgressPrompt, setTheme: vi.fn() }));
+vi.mock("@/actions/profile", () => ({ saveProfile, setSpoilerShield, uploadAvatar, setTheme: vi.fn() }));
 vi.mock("@/actions/onboarding", () => ({ completeOnboarding }));
 vi.mock("@/app/auth/actions", () => ({ signIn, signUp, sendMagicLink, signInWithProvider: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 vi.mock("@/lib/analytics", () => ({ track }));
 
 const { PostComposer } = await import("@/components/form/PostComposer");
@@ -32,8 +32,8 @@ const { AuthForm } = await import("@/components/form/AuthForm");
 const { GroupComposer } = await import("@/components/group/GroupComposer");
 const { InvitePanel } = await import("@/components/group/InvitePanel");
 const { PrivateGroupGate } = await import("@/components/group/PrivateGroupGate");
-const { ProgressPanel } = await import("@/components/shell/ProgressPanel");
-const { ProgressSheet } = await import("@/components/shell/ProgressSheet");
+const { ShieldControls } = await import("@/components/shell/ShieldControls");
+const { ShieldPill } = await import("@/components/shell/ShieldPill");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -160,19 +160,18 @@ describe("OnboardingForm", () => {
   it("sends the reader to the feed once the name is saved", async () => {
     completeOnboarding.mockResolvedValue({ ok: true, data: undefined });
 
-    render(<OnboardingForm progress={0} />);
+    render(<OnboardingForm />);
     await userEvent.type(screen.getByLabelText("Username"), "mara");
     await userEvent.click(screen.getByRole("button", { name: "Start reading" }));
 
     await vi.waitFor(() => expect(push).toHaveBeenCalledWith("/feed"));
     expect(track).toHaveBeenCalledWith("signup_completed", { method: "password" });
-    expect(track).toHaveBeenCalledWith("progress_set", { level: 0, source: "onboarding" });
   });
 
   it("stays put and explains when the name is taken", async () => {
     completeOnboarding.mockResolvedValue({ ok: false, error: "That username is taken." });
 
-    render(<OnboardingForm progress={0} />);
+    render(<OnboardingForm />);
     await userEvent.type(screen.getByLabelText("Username"), "mara");
     await userEvent.click(screen.getByRole("button", { name: "Start reading" }));
 
@@ -274,82 +273,114 @@ describe("group forms", () => {
   });
 });
 
-describe("ProgressPanel", () => {
-  it("saves the level the reader picked", async () => {
-    setProgress.mockResolvedValue({ ok: false, error: "Your progress could not be saved." });
 
-    render(<ProgressPanel progress={2} />);
-    expect(screen.getByText("Chapter 2")).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: "Save progress" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("could not be saved");
-    expect(track).not.toHaveBeenCalled();
+describe("ShieldControls", () => {
+  it("says the shield is off and offers no chapter list until it is on", () => {
+    render(<ShieldControls enabled={false} progress={0} source="settings" />);
+
+    expect(screen.getByRole("switch", { name: "Spoiler shield" })).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByText(/You see every post and reply in full/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Chapter 3" })).not.toBeInTheDocument();
   });
 
-  it("reports the level once the save comes back ok", async () => {
-    setProgress.mockResolvedValue({ ok: true, data: undefined });
+  it("shows every chapter and marks the current one once the shield is on", () => {
+    render(<ShieldControls enabled progress={3} source="settings" />);
 
-    render(<ProgressPanel progress={2} />);
-    fireEvent.change(screen.getByRole("slider", { name: "How far you have played" }), { target: { value: "5" } });
-    await userEvent.click(screen.getByRole("button", { name: "Save progress" }));
+    expect(screen.getByRole("switch", { name: "Spoiler shield" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("button", { name: "Chapter 3" })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("button", { name: "Finished" })).not.toHaveAttribute("aria-current");
+    expect(screen.getByText(/third act/)).toBeInTheDocument();
+  });
 
-    await vi.waitFor(() => expect(track).toHaveBeenCalledWith("progress_set", { level: 5, source: "settings" }));
+  it("turns the shield on, keeping the level it already had", async () => {
+    setSpoilerShield.mockResolvedValue({ ok: true, data: undefined });
+
+    render(<ShieldControls enabled={false} progress={4} source="header" />);
+    await userEvent.click(screen.getByRole("switch", { name: "Spoiler shield" }));
+
+    await vi.waitFor(() => expect(setSpoilerShield).toHaveBeenCalled());
+    const sent = setSpoilerShield.mock.calls[0]![1] as FormData;
+    expect(sent.get("enabled")).toBe("true");
+    expect(sent.get("progress")).toBe("4");
+    expect(track).toHaveBeenCalledWith("progress_set", { level: 4, shield: true, source: "header" });
+  });
+
+  it("picks a chapter and refreshes so the feed re-gates without a reload", async () => {
+    setSpoilerShield.mockResolvedValue({ ok: true, data: undefined });
+
+    render(<ShieldControls enabled progress={1} source="settings" />);
+    await userEvent.click(screen.getByRole("button", { name: "Chapter 5" }));
+
+    await vi.waitFor(() => expect(refresh).toHaveBeenCalled());
+    const sent = setSpoilerShield.mock.calls[0]![1] as FormData;
+    expect(sent.get("enabled")).toBe("true");
+    expect(sent.get("progress")).toBe("5");
+  });
+
+  it("reports a failed save and does not refresh", async () => {
+    setSpoilerShield.mockResolvedValue({ ok: false, error: "Your spoiler shield could not be saved." });
+
+    render(<ShieldControls enabled={false} progress={0} source="settings" />);
+    await userEvent.click(screen.getByRole("switch", { name: "Spoiler shield" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("could not be saved");
+    expect(refresh).not.toHaveBeenCalled();
   });
 });
 
-describe("ProgressSheet", () => {
-  it("opens itself for a visitor who has never been asked", () => {
-    render(<ProgressSheet progress={0} promptOnLoad />);
-
-    expect(screen.getByRole("dialog", { name: "Where are you in the story?" })).toBeInTheDocument();
-    expect(screen.getByText("Haven't played")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+describe("ShieldPill", () => {
+  it("reads as off when the shield is off", () => {
+    render(<ShieldPill enabled={false} progress={0} />);
+    expect(screen.getByRole("button", { name: /Spoiler shield/ })).toHaveTextContent("off");
   });
 
-  it("stays shut for a reader who already answered, behind a trigger", async () => {
-    render(<ProgressSheet progress={3} promptOnLoad={false} />);
+  it("names the chapter when the shield is on", () => {
+    render(<ShieldPill enabled progress={6} />);
+    expect(screen.getByRole("button", { name: /Spoiler shield/ })).toHaveTextContent("Chapter 6");
+  });
 
+  it("opens and closes the popover", async () => {
+    render(<ShieldPill enabled={false} progress={0} />);
+
+    const pill = screen.getByRole("button", { name: /Spoiler shield/ });
+    expect(pill).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    const trigger = screen.getByRole("button", { name: "Level: Chapter 3" });
 
-    await userEvent.click(trigger);
-    expect(screen.getByRole("dialog", { name: "Where are you in the story?" })).toBeInTheDocument();
-  });
+    await userEvent.click(pill);
+    expect(screen.getByRole("dialog", { name: "Spoiler shield" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Spoiler shield" })).toBeInTheDocument();
 
-  it("records level 0 when the visitor walks away from the question", async () => {
-    render(<ProgressSheet progress={0} promptOnLoad />);
-    await userEvent.click(screen.getByRole("button", { name: "Close" }));
-
-    expect(dismissProgressPrompt).toHaveBeenCalled();
+    await userEvent.click(pill);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("does not record anything when a returning reader just closes it", async () => {
-    render(<ProgressSheet progress={4} promptOnLoad={false} />);
-    await userEvent.click(screen.getByRole("button", { name: "Level: Chapter 4" }));
-    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+  it("closes on Escape", async () => {
+    render(<ShieldPill enabled progress={2} />);
+    await userEvent.click(screen.getByRole("button", { name: /Spoiler shield/ }));
 
-    expect(dismissProgressPrompt).not.toHaveBeenCalled();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("saves the level, closes, and reports it", async () => {
-    setProgress.mockResolvedValue({ ok: true, data: undefined });
+  it("closes once a save lands, so the popover does not sit over the refreshed feed", async () => {
+    setSpoilerShield.mockResolvedValue({ ok: true, data: undefined });
 
-    render(<ProgressSheet progress={0} promptOnLoad />);
-    fireEvent.change(screen.getByRole("slider", { name: "How far you have played" }), { target: { value: "5" } });
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+    render(<ShieldPill enabled={false} progress={0} />);
+    await userEvent.click(screen.getByRole("button", { name: /Spoiler shield/ }));
+    await userEvent.click(screen.getByRole("switch", { name: "Spoiler shield" }));
 
     await vi.waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(track).toHaveBeenCalledWith("progress_set", { level: 5, source: "settings" });
   });
+});
 
-  it("keeps the sheet open and explains when the save fails", async () => {
-    setProgress.mockResolvedValue({ ok: false, error: "Your progress could not be saved." });
+describe("ShieldPill accessible name", () => {
+  it("spells out the state, because the visible label is hidden on small screens", () => {
+    const { unmount } = render(<ShieldPill enabled={false} progress={0} />);
+    expect(screen.getByRole("button", { name: "Spoiler shield: off" })).toBeInTheDocument();
+    unmount();
 
-    render(<ProgressSheet progress={0} promptOnLoad />);
-    await userEvent.click(screen.getByRole("button", { name: "Save" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("could not be saved");
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    render(<ShieldPill enabled progress={7} />);
+    expect(screen.getByRole("button", { name: "Spoiler shield: Finished" })).toBeInTheDocument();
   });
 });

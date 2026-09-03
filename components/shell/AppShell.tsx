@@ -10,19 +10,25 @@ type AppShellProps = {
   groups: GroupRow[];
   username: string | null;
   avatarUrl: string | null;
+  shield: { enabled: boolean; progress: number };
 };
 
 /**
  * Three regions on desktop: rail, content, context.
  * The context column drops under the content on tablet, the rail becomes a bottom bar on mobile.
  */
-export function AppShell({ children, context, groups, username, avatarUrl }: AppShellProps) {
+export function AppShell({ children, context, groups, username, avatarUrl, shield }: AppShellProps) {
   return (
     <div className="flex min-h-dvh">
       <NavRail groups={groups} signedIn={Boolean(username)} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <HeaderBar username={username} avatarUrl={avatarUrl} />
+        <HeaderBar
+          username={username}
+          avatarUrl={avatarUrl}
+          shieldEnabled={shield.enabled}
+          shieldProgress={shield.progress}
+        />
 
         <div className="mx-auto flex w-full max-w-[86rem] flex-1 flex-col gap-10 px-4 pt-8 pb-24 md:px-8 xl:flex-row xl:gap-14 xl:pb-16">
           <main className="min-w-0 flex-1 xl:max-w-[var(--content-max)]">

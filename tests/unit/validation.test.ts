@@ -9,7 +9,7 @@ import {
   postEditSchema,
   postInputSchema,
   profileSchema,
-  progressSchema,
+  shieldSchema,
   replyInputSchema,
   reportSchema,
   themeSchema,
@@ -134,8 +134,10 @@ describe("profileSchema", () => {
 
 describe("small schemas", () => {
   it("guards progress, theme, reports, moderation, and avatars", () => {
-    expect(progressSchema.safeParse({ progress: 7 }).success).toBe(true);
-    expect(progressSchema.safeParse({ progress: 8 }).success).toBe(false);
+    expect(shieldSchema.safeParse({ enabled: true, progress: 7 }).success).toBe(true);
+    expect(shieldSchema.safeParse({ enabled: false, progress: 0 }).success).toBe(true);
+    expect(shieldSchema.safeParse({ enabled: true, progress: 8 }).success).toBe(false);
+    expect(shieldSchema.safeParse({ enabled: "yes", progress: 3 }).success).toBe(false);
     expect(themeSchema.safeParse({ theme: "dark" }).success).toBe(true);
     expect(themeSchema.safeParse({ theme: "sepia" }).success).toBe(false);
     expect(reportSchema.safeParse({ targetType: "post", targetId: UUID, reason: "leak" }).success).toBe(true);

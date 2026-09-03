@@ -165,6 +165,16 @@ describe("PostCard", () => {
     expect(screen.queryByText("Question")).not.toBeInTheDocument();
   });
 
+  it("keeps the spoiler level badge on a card the shield is not holding back", () => {
+    // The shield being off makes a level 6 post visible, but the badge stays so a
+    // reader can still see what they are about to read.
+    render(<PostCard post={{ ...visiblePost, spoiler_level: 6 }} />);
+
+    expect(screen.getByText("Chapter 6")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "How big is Leonida" })).toBeInTheDocument();
+    expect(screen.queryByText(/Body hidden until/)).not.toBeInTheDocument();
+  });
+
   it("links the group when the post has one", () => {
     render(<PostCard post={{ ...visiblePost, group: { slug: "vice", name: "Vice City locals", visibility: "public" } }} />);
     expect(screen.getByRole("link", { name: "Vice City locals" })).toHaveAttribute("href", "/g/vice");
@@ -282,10 +292,10 @@ describe("navigation", () => {
   });
 
   it("shows sign in links when logged out and a profile link when logged in", () => {
-    const { rerender } = render(<HeaderBar username={null} avatarUrl={null} />);
+    const { rerender } = render(<HeaderBar username={null} avatarUrl={null} shieldEnabled={false} shieldProgress={0} />);
     expect(screen.getByRole("link", { name: "Sign up" })).toBeInTheDocument();
 
-    rerender(<HeaderBar username="mara" avatarUrl={null} />);
+    rerender(<HeaderBar username="mara" avatarUrl={null} shieldEnabled={false} shieldProgress={0} />);
     expect(screen.getByRole("link", { name: /mara/ })).toHaveAttribute("href", "/u/mara");
   });
 
@@ -321,14 +331,14 @@ describe("navigation", () => {
 
   it("renders the shell with and without a context column", () => {
     const { rerender } = render(
-      <AppShell groups={[]} username={null} avatarUrl={null} context={<p>Context here</p>}>
+      <AppShell groups={[]} username={null} avatarUrl={null} shield={{ enabled: false, progress: 0 }} context={<p>Context here</p>}>
         <p>Main content</p>
       </AppShell>,
     );
     expect(screen.getByRole("complementary", { name: "Context" })).toHaveTextContent("Context here");
 
     rerender(
-      <AppShell groups={[]} username={null} avatarUrl={null}>
+      <AppShell groups={[]} username={null} avatarUrl={null} shield={{ enabled: false, progress: 0 }}>
         <p>Main content</p>
       </AppShell>,
     );

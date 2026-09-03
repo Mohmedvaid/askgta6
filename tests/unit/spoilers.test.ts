@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  NO_GATING,
   SPOILER_LEVELS,
   SPOILER_LEVEL_COUNT,
+  SPOILER_SHIELD_DEFAULT,
   applySpoilerGate,
   applySpoilerGateAll,
   canReveal,
   clampProgress,
+  isGating,
   spoilerLevelInfo,
 } from "@/lib/spoilers";
 
@@ -109,14 +112,14 @@ describe("applySpoilerGate", () => {
   });
 
   it("treats an out of range viewer progress as clamped", () => {
-    expect(applySpoilerGate(post(7), 999).hidden).toBe(false);
-    expect(applySpoilerGate(post(1), -3).hidden).toBe(true);
+    expect(applySpoilerGate(post(7), 999 as never).hidden).toBe(false);
+    expect(applySpoilerGate(post(1), -3 as never).hidden).toBe(true);
   });
 
   it("gates every level boundary exactly once", () => {
     for (let viewer = 0; viewer < SPOILER_LEVEL_COUNT; viewer += 1) {
       for (let level = 0; level < SPOILER_LEVEL_COUNT; level += 1) {
-        expect(applySpoilerGate(post(level), viewer).hidden).toBe(level > viewer);
+        expect(applySpoilerGate(post(level), viewer as never).hidden).toBe(level > viewer);
       }
     }
   });
@@ -142,6 +145,32 @@ describe("applySpoilerGateAll", () => {
 
   it("returns an empty list unchanged", () => {
     expect(applySpoilerGateAll([], 3)).toEqual([]);
+  });
+});
+
+describe("the shield being opt in", () => {
+  it("ships off", () => {
+    expect(SPOILER_SHIELD_DEFAULT).toBe(false);
+  });
+
+  it("hides nothing at all for a reader with the shield off", () => {
+    for (let level = 0; level < SPOILER_LEVEL_COUNT; level += 1) {
+      const gated = applySpoilerGate(post(level), NO_GATING);
+      expect(gated.hidden, `level ${level}`).toBe(false);
+      expect(gated).toMatchObject({ body: "A body that must not leak." });
+    }
+  });
+
+  it("returns every item in a list in full with the shield off", () => {
+    const gated = applySpoilerGateAll([post(0), post(3), post(7)], NO_GATING);
+    expect(gated.map((item) => item.hidden)).toEqual([false, false, false]);
+    expect(JSON.stringify(gated)).toContain("A body that must not leak.");
+  });
+
+  it("says which progress values gate and which do not", () => {
+    expect(isGating(NO_GATING)).toBe(false);
+    expect(isGating(0)).toBe(true);
+    expect(isGating(7)).toBe(true);
   });
 });
 

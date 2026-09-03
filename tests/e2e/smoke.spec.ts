@@ -44,18 +44,16 @@ test.describe("landing", () => {
 test.describe("feed shell", () => {
   test("renders the tabs, the topic chips, and an empty state", async ({ page }) => {
     await page.goto("/feed");
-    await page.getByRole("button", { name: "Close" }).click();
     await expect(page.getByRole("link", { name: "Latest" })).toBeVisible();
     await expect(page.getByRole("link", { name: "All topics" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Nothing here yet" })).toBeVisible();
   });
 
-  test("shows a logged out reader their own progress control and a sign up nudge", async ({ page }) => {
+  test("explains the shield in the context column and nudges a guest to sign up", async ({ page }) => {
     await page.goto("/feed");
-    await page.getByRole("button", { name: "Close" }).click();
 
     const context = page.getByRole("complementary", { name: "Context" });
-    await expect(context).toContainText("Your progress");
+    await expect(context).toContainText("The spoiler shield");
     await expect(context).toContainText("Reading as a guest");
   });
 });

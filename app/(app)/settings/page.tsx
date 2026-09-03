@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { ProfileForm } from "@/components/form/ProfileForm";
 import { AvatarForm } from "@/components/form/AvatarForm";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
-import { getViewer } from "@/lib/viewer";
+import { ShieldControls } from "@/components/shell/ShieldControls";
+import { getShieldState, getViewer } from "@/lib/viewer";
 import { avatarUrl } from "@/lib/queries/profiles";
 import { NOINDEX } from "@/lib/indexing";
 
@@ -14,15 +15,25 @@ export default async function SettingsPage() {
   if (!viewer) redirect("/auth/sign-in?next=/settings");
 
   const url = await avatarUrl(viewer.avatarPath);
+  const shield = await getShieldState();
 
   return (
     <div className="space-y-10">
       <header>
         <h1 className="font-display text-3xl font-bold text-text-primary">Settings</h1>
         <p className="mt-2 text-sm text-text-secondary">
-          Your progress control lives in the sidebar and takes effect everywhere the moment you save it.
+          The spoiler shield is also in the header, and the two stay in step.
         </p>
       </header>
+
+      <section className="space-y-4">
+        <h2 className="font-display text-sm font-semibold tracking-widest text-text-muted uppercase">
+          Spoiler shield
+        </h2>
+        <div className="rounded-lg border border-border bg-surface-1 p-5">
+          <ShieldControls enabled={shield.enabled} progress={shield.progress} source="settings" />
+        </div>
+      </section>
 
       <section className="space-y-6">
         <h2 className="font-display text-sm font-semibold tracking-widest text-text-muted uppercase">Profile</h2>

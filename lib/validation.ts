@@ -60,7 +60,10 @@ export const profileSchema = z.object({
   displayName: z.string().trim().max(40, "Display name is capped at 40 characters.").optional(),
 });
 
-export const progressSchema = z.object({ progress: spoilerLevel });
+export const shieldSchema = z.object({
+  enabled: z.boolean(),
+  progress: spoilerLevel,
+});
 
 export const themeSchema = z.object({ theme: z.enum(["dark", "light"]) });
 

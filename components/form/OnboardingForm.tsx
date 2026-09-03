@@ -2,25 +2,22 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SpoilerLevelControl } from "../SpoilerLevelControl";
 import { SubmitButton } from "./SubmitButton";
 import { FieldError } from "./FieldError";
 import { completeOnboarding } from "@/actions/onboarding";
 import { normalizeUsername } from "@/lib/username";
 import { track } from "@/lib/analytics";
 
-export function OnboardingForm({ progress }: { progress: number }) {
+export function OnboardingForm() {
   const router = useRouter();
   const [state, formAction] = useActionState(completeOnboarding, null);
   const [name, setName] = useState("");
-  const [level, setLevel] = useState(progress);
 
   useEffect(() => {
     if (!state?.ok) return;
     track("signup_completed", { method: "password" });
-    track("progress_set", { level, source: "onboarding" });
     router.push("/feed");
-  }, [state, level, router]);
+  }, [state, router]);
 
   return (
     <form action={formAction} className="space-y-8">
@@ -41,13 +38,6 @@ export function OnboardingForm({ progress }: { progress: number }) {
         <p className="mt-1 text-xs text-text-muted">3 to 20 lowercase letters, digits, or underscores.</p>
       </div>
 
-      <SpoilerLevelControl
-        name="progress"
-        defaultValue={progress}
-        onChange={setLevel}
-        label="How far have you played"
-        hint="Before launch, leave this at the first level."
-      />
 
       <FieldError message={state && !state.ok ? state.error : null} />
       <SubmitButton label="Start reading" pendingLabel="Saving" />

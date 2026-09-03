@@ -4,9 +4,9 @@ import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/viewer";
-import { firstIssue, profileSchema, progressSchema, themeSchema, type ActionResult } from "@/lib/validation";
+import { firstIssue, profileSchema, shieldSchema, themeSchema, type ActionResult } from "@/lib/validation";
 import { THEME_COOKIE } from "@/lib/theme/cookie";
-import { writeAnonymousProgress } from "@/lib/anonymous-progress";
+import { writeAnonymousShield } from "@/lib/anonymous-progress";
 import { clampProgress } from "@/lib/spoilers";
 
 export async function saveProfile(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
@@ -38,34 +38,38 @@ export async function saveProfile(_state: ActionResult | null, formData: FormDat
 }
 
 /**
- * Serves both readers. A signed in one goes through the set_progress function,
- * a logged out one gets the cookie. Same form, same control, same result on screen.
+ * The one write path for the shield, for either kind of reader. A guest gets two
+ * cookies, a signed in reader gets two columns. Profiles row level security already
+ * limits the update to its owner and the check constraint already bounds the level,
+ * so this writes the row directly rather than going through set_progress.
  */
-export async function setProgress(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const parsed = progressSchema.safeParse({ progress: String(formData.get("progress") ?? "0") });
+export async function setSpoilerShield(
+  _state: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const parsed = shieldSchema.safeParse({
+    enabled: formData.get("enabled") === "true",
+    progress: String(formData.get("progress") ?? "0"),
+  });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
+  const level = clampProgress(parsed.data.progress);
   const viewer = await getViewer();
 
   if (!viewer) {
-    await writeAnonymousProgress(clampProgress(parsed.data.progress));
+    await writeAnonymousShield(parsed.data.enabled, level);
     revalidatePath("/", "layout");
     return { ok: true, data: undefined };
   }
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.rpc("set_progress", { new_level: parsed.data.progress });
-  if (error) return { ok: false, error: "Your progress could not be saved." };
+  const { error } = await supabase
+    .from("profiles")
+    .update({ progress: level, spoiler_shield: parsed.data.enabled })
+    .eq("id", viewer.userId);
 
-  revalidatePath("/", "layout");
-  return { ok: true, data: undefined };
-}
+  if (error) return { ok: false, error: "Your spoiler shield could not be saved." };
 
-/** The one time sheet's dismiss path. Recording 0 is what stops it asking again. */
-export async function dismissProgressPrompt(): Promise<ActionResult> {
-  if (await getViewer()) return { ok: true, data: undefined };
-
-  await writeAnonymousProgress(0);
   revalidatePath("/", "layout");
   return { ok: true, data: undefined };
 }

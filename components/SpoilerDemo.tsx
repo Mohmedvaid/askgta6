@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { SPOILER_LEVELS, applySpoilerGateAll, spoilerLevelInfo } from "@/lib/spoilers";
+import { SPOILER_LEVELS, applySpoilerGateAll, clampProgress, spoilerLevelInfo } from "@/lib/spoilers";
 import { SpoilerPlaceholder } from "./post/SpoilerPlaceholder";
 import { SpoilerBadge } from "./SpoilerBadge";
 
@@ -32,7 +32,7 @@ const SAMPLES = [
  */
 export function SpoilerDemo() {
   const [progress, setProgress] = useState(0);
-  const gated = applySpoilerGateAll(SAMPLES, progress);
+  const gated = applySpoilerGateAll(SAMPLES, clampProgress(progress));
   const info = spoilerLevelInfo(progress);
 
   return (

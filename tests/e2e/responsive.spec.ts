@@ -6,7 +6,6 @@ test.describe("shell layout", () => {
   test("swaps the rail for a bottom bar on small screens", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/feed");
-    await page.getByRole("button", { name: "Close" }).click();
 
     // The rail is the only place that says "New post". The bottom bar says "Post".
     const railLink = page.getByRole("link", { name: "New post", exact: true });
@@ -22,7 +21,6 @@ test.describe("shell layout", () => {
 
   test("never scrolls horizontally at any width", async ({ page }) => {
     await page.goto("/feed");
-    await page.getByRole("button", { name: "Close" }).click();
 
     for (const width of WIDTHS) {
       await page.setViewportSize({ width, height: 900 });

@@ -1,21 +1,28 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { clearAnonymousProgress, readAnonymousProgress } from "./anonymous-progress";
+import { clearAnonymousShield, readAnonymousProgress, readAnonymousShield } from "./anonymous-progress";
 
 /**
- * Carries a guest's cookie level onto the profile the signup trigger just created,
- * then drops the cookie so the profile is the single source of truth from here on.
- * Returns the level that was adopted, or null when there was nothing to carry.
+ * Carries a guest's shield onto the profile the signup trigger just created, then
+ * drops the cookies so the profile is the single source of truth from here on.
+ * Returns what was adopted, or null when the guest never touched the control.
  */
-export async function adoptAnonymousProgress(
+export async function adoptAnonymousShield(
   supabase: SupabaseClient,
   userId: string,
-): Promise<number | null> {
+): Promise<{ enabled: boolean; progress: number } | null> {
   const level = await readAnonymousProgress();
-  if (level === null) return null;
+  const enabled = await readAnonymousShield();
 
-  const { error } = await supabase.from("profiles").update({ progress: level }).eq("id", userId);
+  // Nothing to carry: the shield is off at the shipped default and no level was set.
+  if (level === null && !enabled) return null;
+
+  const adopted = { enabled, progress: level ?? 0 };
+  const { error } = await supabase
+    .from("profiles")
+    .update({ progress: adopted.progress, spoiler_shield: adopted.enabled })
+    .eq("id", userId);
   if (error) return null;
 
-  await clearAnonymousProgress();
-  return level;
+  await clearAnonymousShield();
+  return adopted;
 }

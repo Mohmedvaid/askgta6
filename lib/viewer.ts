@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { createSupabaseServerClient } from "./supabase/server";
-import { clampProgress, type SpoilerLevel } from "./spoilers";
-import { readAnonymousProgress } from "./anonymous-progress";
+import { NO_GATING, SPOILER_SHIELD_DEFAULT, clampProgress, type SpoilerLevel, type ViewerProgress } from "./spoilers";
+import { readAnonymousProgress, readAnonymousShield } from "./anonymous-progress";
 
 export type Viewer = {
   userId: string;
@@ -9,12 +9,11 @@ export type Viewer = {
   displayName: string | null;
   avatarPath: string | null;
   progress: SpoilerLevel;
+  shieldEnabled: boolean;
   theme: "dark" | "light";
 };
 
-/**
- * The signed in person, or null. Cached per request so a page can ask more than once.
- */
+/** The signed in person, or null. Cached per request so a page can ask more than once. */
 export const getViewer = cache(async (): Promise<Viewer | null> => {
   const supabase = await createSupabaseServerClient();
   const { data: auth } = await supabase.auth.getUser();
@@ -22,7 +21,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_path, progress, theme")
+    .select("id, username, display_name, avatar_path, progress, spoiler_shield, theme")
     .eq("id", auth.user.id)
     .single();
 
@@ -34,23 +33,32 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     displayName: profile.display_name,
     avatarPath: profile.avatar_path,
     progress: clampProgress(profile.progress),
+    shieldEnabled: profile.spoiler_shield === true,
     theme: profile.theme === "light" ? "light" : "dark",
   };
 });
 
-/**
- * The one place progress is read. A signed in reader's level comes from their
- * profile, a logged out one's from the cookie, and an unanswered visitor reads
- * at 0. Every gated query calls this, so the two paths can never drift.
- */
-export const getViewerProgress = cache(async (): Promise<SpoilerLevel> => {
+/** Whether the shield is on and what level it is set to, for either kind of reader. */
+export type ShieldState = { enabled: boolean; progress: SpoilerLevel };
+
+export const getShieldState = cache(async (): Promise<ShieldState> => {
   const viewer = await getViewer();
-  if (viewer) return viewer.progress;
-  return (await readAnonymousProgress()) ?? 0;
+  if (viewer) return { enabled: viewer.shieldEnabled, progress: viewer.progress };
+
+  return {
+    enabled: await readAnonymousShield(),
+    progress: (await readAnonymousProgress()) ?? 0,
+  };
 });
 
-/** True when a logged out visitor has never been asked, which is what shows the sheet. */
-export async function needsProgressPrompt(): Promise<boolean> {
-  if (await getViewer()) return false;
-  return (await readAnonymousProgress()) === null;
-}
+/**
+ * The one place gating is decided. A reader with the shield off gets NO_GATING,
+ * which means every post and reply comes back in full. Every gated query calls
+ * this, so the signed in and logged out paths cannot drift.
+ */
+export const getViewerProgress = cache(async (): Promise<ViewerProgress> => {
+  const shield = await getShieldState();
+  return shield.enabled ? shield.progress : NO_GATING;
+});
+
+export { SPOILER_SHIELD_DEFAULT };

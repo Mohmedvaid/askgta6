@@ -19,7 +19,7 @@ export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[number];
 
 type EventProperties = {
   signup_completed: { method: "password" | "magic_link" | "discord" | "google" };
-  progress_set: { level: number; source: "onboarding" | "settings" };
+  progress_set: { level: number; shield: boolean; source: "header" | "settings" };
   post_created: { kind: "question" | "discussion"; topic: string; spoiler_level: number; in_group: boolean };
   reveal_clicked: { target: "post" | "reply"; spoiler_level: number };
 };

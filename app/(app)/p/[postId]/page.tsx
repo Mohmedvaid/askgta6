@@ -12,7 +12,7 @@ import { ReportDialog } from "@/components/form/ReportDialog";
 import { Empty } from "@/components/Empty";
 import { getPost } from "@/lib/queries/posts";
 import { listReplies } from "@/lib/queries/replies";
-import { getViewer, getViewerProgress } from "@/lib/viewer";
+import { getShieldState, getViewer, getViewerProgress } from "@/lib/viewer";
 import { getMyVote } from "@/actions/votes";
 import { acceptReply, deletePost } from "@/actions/posts";
 import { deleteReply } from "@/actions/replies";
@@ -48,6 +48,9 @@ export default async function PostPage({ params }: { params: Params }) {
   const { postId } = await params;
   const viewer = await getViewer();
   const progress = await getViewerProgress();
+  // A reply defaults to the chapter the author says they are at, which is their
+  // shield level whether or not the shield is currently holding anything back.
+  const shield = await getShieldState();
   const post = await getPost(postId, progress);
   if (!post) notFound();
 
@@ -137,7 +140,7 @@ export default async function PostPage({ params }: { params: Params }) {
 
       <section className="border-t border-border pt-8">
         {viewer ? (
-          <ReplyComposer postId={post.id} defaultSpoilerLevel={progress} />
+          <ReplyComposer postId={post.id} defaultSpoilerLevel={shield.progress} />
         ) : (
           <Empty
             title="Sign in to reply"

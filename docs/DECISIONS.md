@@ -20,12 +20,23 @@ One line each: what was chosen, what was rejected, why.
 - **Reveals are not persisted.** `revealContent` returns rendered markdown and the client holds it in component state. Rejected a `reveals` table: it is state to migrate, to garbage collect, and to leak.
 - **Metadata and Open Graph images are generated at level 0 for everyone.** A link preview is seen by people who never chose a progress level, so it can never carry a spoiler. Posts above level 0 get a generic card.
 
+## The shield being opt in
+
+- **Off by default, for everyone.** A gate nobody asked for is a wall in front of a forum most people want to read. `SPOILER_SHIELD_DEFAULT` is `false` and both the cookie and the column default to off, so a first visit shows everything.
+- **The first visit sheet is gone.** Interrupting a reader before they have seen a single post to ask a question about a game that is not out was the wrong trade. The pill in the header is discoverable without being in the way.
+- **`getViewerProgress` returns `NO_GATING` rather than a level.** Rejected returning 8, or `Infinity`, or a nullable number: a sentinel that is not a number cannot be compared by accident, and TypeScript makes every call site handle it.
+- **The pill and the settings page are the same component.** `ShieldControls` is rendered in a popover by one and inline by the other, so the two cannot drift.
+- **Every change writes immediately and calls `router.refresh()`.** No save button, no reload, and the feed re-gates in place. Rejected a form with a submit: a toggle that needs confirming is a toggle that gets left half set.
+- **Switching the shield off keeps the chapter.** Turning it back on lands where you were rather than at zero.
+- **Onboarding no longer asks how far you have played.** With the shield off by default the answer does nothing until you turn it on, and the pill is where you turn it on. One field left: the username.
+- **`set_progress` stays in the schema but nothing calls it.** The shield writes both columns in one update, and profiles row level security already limits that to its owner. Dropping a live function would be a migration with no benefit, so it stays with its test.
+
 ## Anonymous progress
 
-- **A cookie, not a row.** A logged out reader's level lives in `askgta6_progress` for a year. Rejected an anonymous session row, which is a table to write, migrate, and garbage collect for a number that fits in one byte.
-- **The cookie being absent is the signal to ask.** There is no separate "seen the prompt" flag. Dismissing the sheet records 0, which is both an answer and the reason it never asks twice.
-- **`getViewerProgress` is the single reader.** Profile for a signed in person, cookie for a guest, 0 for someone who has not been asked. Every gated query calls it, so the two paths cannot drift.
-- **Signing up copies the cookie onto the profile, then clears it.** Adoption runs in the sign up action and in the auth callback, because magic link and OAuth never touch the action. After adoption the profile is the only source, so there is nothing to keep in step.
+- **Cookies, not a row.** A logged out reader's shield lives in `askgta6_shield` and `askgta6_progress` for a year. Rejected an anonymous session row, which is a table to write, migrate, and garbage collect for a boolean and a number that fits in one byte.
+- **Two cookies, not one packed value.** The level survives the shield being switched off, which is what makes turning it back on land where you left it.
+- **`getViewerProgress` is the single reader.** Profile for a signed in person, cookies for a guest. Every gated query calls it, so the two paths cannot drift.
+- **Signing up copies the cookies onto the profile, then clears them.** Adoption runs in the sign up action and in the auth callback, because magic link and OAuth never touch the action. After adoption the profile is the only source, so there is nothing to keep in step.
 
 ## Markdown
 
