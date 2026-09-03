@@ -1,5 +1,7 @@
 # Deploy AskGTA6
 
+> Historical record, not maintained. The current handbook is [docs/README.md](../README.md).
+
 Five steps, about ten minutes. Follow them in order. Nothing here assumes you wrote the code.
 
 You need: a Supabase account, a Vercel account, Node 22 or newer, and pnpm 10 or newer.

@@ -1,5 +1,7 @@
 # AskGTA6 MVP: reviewer session (run in a fresh session, not the builder)
 
+> Historical record, not maintained. The current handbook is [docs/README.md](../README.md).
+
 You are reviewing a Next.js plus Supabase MVP that another session built overnight from the spec in `docs/` (read `docs/BUILD_REPORT.md` and `docs/DECISIONS.md` first, then the original build prompt if it is in the repo). You did not write this code. Do not trust the build report; verify it.
 
 Do this, in order, and fix what you find directly on `main` with clear commits. Do not ask questions. No em dashes anywhere.

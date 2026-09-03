@@ -1,5 +1,7 @@
 # Build report
 
+> Historical record, not maintained. The current handbook is [docs/README.md](../README.md).
+
 Built in one session from an empty repository. `pnpm check` is green, `pnpm build` is green, and the Playwright suite is green.
 
 ## What works end to end

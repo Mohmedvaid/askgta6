@@ -1,5 +1,7 @@
 # Decisions
 
+> Historical record, not maintained. The current handbook is [docs/README.md](../README.md).
+
 One line each: what was chosen, what was rejected, why.
 
 ## Database

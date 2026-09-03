@@ -1,5 +1,7 @@
 # AskGTA6 MVP: full build prompt
 
+> Historical record, not maintained. The current handbook is [docs/README.md](../README.md).
+
 ## 0. How to operate this session
 
 You are building a complete, working MVP from an empty repo in one unattended session. Nobody is watching. Read this entire document before writing a line of code, then execute end to end.

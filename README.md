@@ -8,13 +8,15 @@ Fan made and unofficial. Not affiliated with Rockstar Games or Take-Two Interact
 
 ```bash
 pnpm install
-cp .env.example .env.local   # fill in your Supabase keys, see docs/DEPLOY.md
+cp .env.example .env.local   # fill in your Supabase keys, see docs/system/runbook.md
 pnpm supabase:push           # applies supabase/migrations to your project
 pnpm seed                    # about 180 posts, 450 replies, 4 accounts, 3 groups
 pnpm dev
 ```
 
-Full setup, including the Supabase Auth settings you have to flip: [docs/DEPLOY.md](docs/DEPLOY.md).
+Full setup, the Supabase Auth settings you have to flip, and every operating procedure: **[the handbook in docs/](docs/README.md)**.
+
+The migrations are already applied to the shared project, so `supabase:push` and `seed` are only needed for a fresh project.
 
 ## Scripts
 

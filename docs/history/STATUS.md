@@ -1,5 +1,7 @@
 # Status
 
+> Historical record, not maintained. The current handbook is [docs/README.md](../README.md).
+
 What is verified, how, and what is still unproven. Updated 2026-09-03, after the spoiler shield became opt in.
 
 ## The blocker, stated first
