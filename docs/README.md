@@ -14,6 +14,7 @@ AskGTA6 is a spoiler safe community for Grand Theft Auto VI, which releases Nove
 | [app/product.md](app/product.md) | What it is and what it deliberately is not. Shield rules, spoiler levels, posting rules, groups. |
 | [app/testing.md](app/testing.md) | The three test layers, how to run each, the pglite harness, the coverage threshold. |
 | [BACKLOG.md](BACKLOG.md) | What has to happen before launch, and what is parked for later. |
+| [design/README.md](design/README.md) | Three alternative theme directions with screenshots, none of them live. Pick one by looking. |
 
 ## History
 
@@ -23,6 +24,7 @@ Point in time records, kept because they explain why things are the way they are
 | --- | --- |
 | [history/DECISIONS.md](history/DECISIONS.md) | Every non obvious call and what was rejected. The most useful of these. |
 | [history/BUILD_REPORT.md](history/BUILD_REPORT.md) | What the first build session produced and verified. |
+| [history/NIGHT_2.md](history/NIGHT_2.md) | The second long session: request caching, landing page truth, JSON-LD, RSS, the performance pass, the honeypot, and what was skipped. |
 | [history/STATUS.md](history/STATUS.md) | What was verified live and what was not, as of the last session that could not reach Supabase. |
 | [history/DEPLOY.md](history/DEPLOY.md) | The original from scratch deploy checklist. Superseded by the runbook, kept for the Supabase dashboard steps. |
 | [history/BUILD_PROMPT.md](history/BUILD_PROMPT.md) | The spec the whole thing was built from. |

@@ -94,6 +94,12 @@ These stay noindex whatever the flag says: `/auth/*`, `/settings`, `/admin/*`, `
 
 The value is inlined at build time, so changing it needs a rebuild.
 
+## Feeds and structured data
+
+`/feed.xml` carries the latest fifty level 0 posts, `/g/<slug>/feed.xml` the same for one public group. Titles, links, authors, dates. No item has a description and the query never selects a body, because a feed reader has no shield. Both are empty while indexing is off, as the sitemap is.
+
+Post pages emit JSON-LD: a `QAPage` for a question with a readable accepted answer, a `DiscussionForumPosting` otherwise, and a `CollectionPage` for a public group. Nothing is emitted for a page that is not indexable, and no branch can carry a gated body.
+
 ## Analytics
 
 Vercel Analytics, mounted in the root layout. `lib/analytics.ts` declares exactly four events with typed properties: `signup_completed`, `progress_set`, `post_created`, `reveal_clicked`. No payload carries a user id, a title, or a body.

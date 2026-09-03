@@ -21,16 +21,21 @@ app/
   auth/            sign in, sign up, magic link, OAuth, callback
   robots.ts        crawler policy, driven by NEXT_PUBLIC_INDEXING
   sitemap.ts       empty while indexing is off
+  feed.xml/        RSS for the site, level 0 posts only
 components/        one component per file, grouped by concern
 lib/
   spoilers.ts      the levels, the shield default, and applySpoilerGate
   viewer.ts        who is reading and what their shield says
   queries/         the only place posts and replies are read
   indexing.ts      what may be indexed and what never may
+  structured-data.ts  JSON-LD for post and group pages
+  rss.ts           the RSS document, and the response it is served in
+  site.ts          siteUrl and absoluteUrl, the only origin in the app
+  honeypot.ts      the hidden field, and whether it was filled
   auth-errors.ts   Supabase auth codes to copy a person can act on
   validation.ts    a zod schema per mutation
   theme/           tokens.css, fonts.ts, and the Open Graph palette
-  supabase/        server, browser, admin, and middleware clients
+  supabase/        server, browser, admin, public, and middleware clients
 actions/           server actions, one file per domain
 supabase/
   migrations/      numbered SQL, applied in filename order
@@ -43,8 +48,8 @@ tests/
 
 ## Request flow
 
-1. `middleware.ts` runs on every request that is not a static asset. It calls `updateSession`, which refreshes the Supabase auth cookie so server components see a live session.
-2. The page's layout calls `getViewer()` (cached per request) and `getShieldState()`.
+1. `middleware.ts` runs on every request that is not a static asset. It calls `updateSession`, which refreshes the Supabase auth cookie so server components see a live session, and sends a signed in reader from `/` to `/feed`, because the landing page is prerendered and cannot decide that itself.
+2. The page's layout calls `getViewer()` and `getShieldState()`.
 3. The page calls something in `lib/queries/`, which reads through the request scoped Supabase client. Row level security decides what rows come back.
 4. Every post and reply passes through `applySpoilerGate` on the way out of `lib/queries/`. A page cannot reach the database without it.
 5. Mutations go through a Server Action, which validates with a zod schema from `lib/validation.ts` and returns `{ok: true, data} | {ok: false, error}`. Nothing throws across the boundary.
@@ -106,6 +111,24 @@ That list holds through three independent layers: explicit `robots: NOINDEX` in 
 
 Noindex is the root layout default and indexable pages opt in, because forgetting an opt out leaks a page while forgetting an opt in only costs traffic.
 
+## One client, one lookup, per request
+
+`createSupabaseServerClient` and `getViewer` are both wrapped in React's `cache()`, so a whole page render shares one client and one `auth.getUser` call however many of the forty odd call sites ask. `getViewer` is the only caller of `auth.getUser` outside `lib/supabase/middleware.ts`, which runs in its own request context before any cache scope exists; `tests/unit/request-cache.test.ts` asserts that and counts the calls across a simulated page tree.
+
+`lib/supabase/public.ts` is the exception: a client with no session and no cookies. Reading cookies is what makes a route dynamic, so anything prerendered reads through that one instead.
+
+## Rendering
+
+- **The landing page is static**, revalidated every ten minutes. Its posts come from `listLandingPosts` through the cookie free client, and the signed in redirect is in middleware.
+- The root layout reads no cookies. `data-theme="dark"` is served, matching `:root` in `tokens.css`, and `THEME_BOOTSTRAP` in `lib/theme/cookie.ts` runs as the first thing in the body to switch a light reader over before anything is painted. That is what keeps every route eligible to be prerendered.
+- The feed and group routes have a `loading.tsx`. **The post route deliberately does not.** That boundary flushes a 200 shell before `getPost` has run, which turns every missing post into a 200 for a crawler; the Playwright suite catches it. The post page streams its replies behind an inner `<Suspense>` instead, which keeps the 404 and still paints the post first.
+- Avatars go through `next/image`. The Supabase storage host is allowed in `next.config.ts`; without that entry the component throws rather than falling back.
+
+## Syndication and structured data
+
+- **JSON-LD**, from `lib/structured-data.ts`, rendered by `components/seo/JsonLd`. A question with an accepted answer both reader and crawler can see becomes a `QAPage`; everything else is a `DiscussionForumPosting` with `interactionStatistic` counters for votes and replies. Public groups get a `CollectionPage`. It returns null unless the page is indexable, and no branch can carry a gated body because the gate deleted it before the page saw it.
+- **RSS** at `/feed.xml` and `/g/[slug]/feed.xml`. Titles, links, authors, dates. No item has a description and nothing carries a body: a feed reader has no shield, so the query takes level 0 rows only and never selects a body. Both are empty while indexing is off, the way the sitemap is, and the `link rel=alternate` that advertises them only appears when the flag is on.
+
 ## Moderation
 
 - Anyone signed in can report a post or reply. Reasons: `spam`, `leak`, `harassment`, `wrong_spoiler_level`, `spoiler_in_title`, `other`. One report per person per item, enforced by a unique constraint.
@@ -124,6 +147,8 @@ Enforced by `before insert` triggers counting the author's last 60 seconds:
 Exceeding either raises, and the server action maps it to "You are posting too quickly. Wait a minute and try again." Feed pages are 20 items with a Load more link, never infinite scroll.
 
 These numbers are tuned for a quiet forum. Review them before a launch spike; that is on the backlog.
+
+Signup, magic link, and both composers carry a honeypot: a field named `website`, moved off screen rather than hidden so a form filler still fills it, out of the tab order and out of the accessibility tree so a person never meets it. A tripped signup or magic link gets the answer a real one gets and nothing happens. A tripped post or reply gets a generic failure and writes nothing. There is no per IP signup limit yet; the proposed migration for one is written out in [../BACKLOG.md](../BACKLOG.md).
 
 ## Storage
 

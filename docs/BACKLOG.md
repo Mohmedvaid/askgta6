@@ -53,11 +53,19 @@ When there is real content worth finding, set `NEXT_PUBLIC_INDEXING=on` in Verce
 
 Once the real chapter structure is public, rename them in `SPOILER_LEVELS` in `lib/spoilers.ts`. **The count stays at eight**: the database check constraints assume 0 to 7 and existing posts carry those numbers. Labels are a one line edit each; the count is a migration and a backfill.
 
-### Review rate limits for a launch spike, and consider Supabase Pro
+### Review rate limits for a launch spike
 
 Today: 5 posts and 15 replies per person per minute, enforced by triggers in migration `0003`. Those are tuned for a quiet forum and may be wrong in both directions during launch week. Decide before November 12.
 
-Separately, the project is on the **free tier**, which means no automatic database backups and hard connection and bandwidth ceilings. Upgrade to Pro before November 19 for the backups alone, ahead of the traffic.
+### Supabase Pro before November 12
+
+Three reasons, in order of how much they hurt:
+
+- **No automatic backups on the free tier.** A manual `supabase db dump` is the only copy that exists, and nobody is going to run one at 2am. Pro takes daily backups.
+- **Auth rate limits.** The free tier's hosted auth limits, on emails in particular, are meant for development. A launch week signup spike will hit them, and the failure looks to a person like "it just did not work". The app maps that code to specific copy, so it will at least be legible in the Vercel logs, but the signups are still lost.
+- **Connection and bandwidth ceilings**, which are the ones that turn a good day into an outage.
+
+Do this before pre-load day, not before launch day. Traffic starts climbing on November 12.
 
 ### Decide SPOILER_SHIELD_DEFAULT for launch week
 
@@ -143,3 +151,9 @@ Parked deliberately. Nothing here blocks launch.
 - **Reply editing.** Posts can be edited, replies cannot. The row level security policy already allows it; there is no UI.
 - **Email digests.** Depends on Resend being wired up first.
 - **A roles table.** Only worth it if moderation outgrows a list of uuids in an environment variable.
+
+## Recently done
+
+Kept here briefly so a reader does not re-open a decision that has already been made.
+
+- **`getUser` dedupe.** `getViewer` was already wrapped in React's `cache()`; the client factory was not, and forty odd call sites each rebuilt one per render. Both are cached now, and `tests/unit/request-cache.test.ts` counts the calls across a page tree so it stays that way.
