@@ -16,18 +16,20 @@ test.describe("landing", () => {
   test("the slider hides and reveals the sample cards", async ({ page }) => {
     await page.goto("/");
 
-    const sealed = page.getByRole("heading", { name: /second act job/ });
-    await expect(sealed).toHaveCount(0);
+    // Every title is readable at level 0. Only the bodies seal and open.
     await expect(page.getByRole("heading", { name: /How big is Leonida/ })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /second act job/ })).toBeVisible();
+    await expect(page.getByText("Body hidden until Chapter 2")).toBeVisible();
+    await expect(page.getByText(/mid game answer/)).toHaveCount(0);
 
     const slider = page.getByRole("slider", { name: /Drag to set/ });
     await slider.fill("7");
 
-    await expect(page.getByRole("heading", { name: /second act job/ })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /near the end of the story/ })).toBeVisible();
+    await expect(page.getByText(/mid game answer/)).toBeVisible();
+    await expect(page.getByText(/Body hidden until/)).toHaveCount(0);
 
     await slider.fill("0");
-    await expect(page.getByRole("heading", { name: /second act job/ })).toHaveCount(0);
+    await expect(page.getByText("Body hidden until Chapter 2")).toBeVisible();
   });
 
   test("does not scroll horizontally", async ({ page }) => {
@@ -42,14 +44,19 @@ test.describe("landing", () => {
 test.describe("feed shell", () => {
   test("renders the tabs, the topic chips, and an empty state", async ({ page }) => {
     await page.goto("/feed");
+    await page.getByRole("button", { name: "Close" }).click();
     await expect(page.getByRole("link", { name: "Latest" })).toBeVisible();
     await expect(page.getByRole("link", { name: "All topics" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Nothing here yet" })).toBeVisible();
   });
 
-  test("shows the progress panel to logged out readers as a sign up prompt", async ({ page }) => {
+  test("shows a logged out reader their own progress control and a sign up nudge", async ({ page }) => {
     await page.goto("/feed");
-    await expect(page.getByRole("complementary", { name: "Context" })).toContainText("Reading at level 0");
+    await page.getByRole("button", { name: "Close" }).click();
+
+    const context = page.getByRole("complementary", { name: "Context" });
+    await expect(context).toContainText("Your progress");
+    await expect(context).toContainText("Reading as a guest");
   });
 });
 
