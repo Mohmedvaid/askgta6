@@ -63,7 +63,7 @@ This creates four seed accounts, two public groups, one private group, about 180
 
 It prints the private group's invite code, something like `Night shift invite code: NIGHTRUN`. Save it if you want to test the invite flow.
 
-The seed accounts all use the password `askgta6-seed-account`. Delete them before you have real users, or change the password in `supabase/seed/seed.ts` first.
+Each seed account gets a fresh random password on every run. They are printed once and written to `seed-credentials.local.json`, which is gitignored. Re-running the seed rotates them. Delete the accounts before you have real users.
 
 Check it locally now:
 

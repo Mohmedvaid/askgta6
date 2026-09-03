@@ -26,7 +26,7 @@ Full setup, including the Supabase Auth settings you have to flip: [docs/DEPLOY.
 | `pnpm test` | Unit and component tests, fails under 80 percent lines and branches |
 | `pnpm test:db` | pglite backed migration, trigger, and row level security tests |
 | `pnpm test:e2e` | Playwright smoke suite against `pnpm build && pnpm start` |
-| `pnpm seed` | Idempotent seed against `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` |
+| `pnpm seed` | Idempotent seed against `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Writes fresh account passwords to the gitignored `seed-credentials.local.json`. |
 | `pnpm supabase:push` | `supabase db push` |
 
 The database tests need no Docker. They boot Postgres in WebAssembly through pglite, apply a small Supabase shim, then apply every migration, so row level security is exercised the way Supabase exercises it.

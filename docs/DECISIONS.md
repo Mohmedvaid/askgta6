@@ -52,6 +52,10 @@ One line each: what was chosen, what was rejected, why.
 - **A feed search result page is noindex even with the flag on.** Arbitrary query permutations are index bloat, and nobody searches for them.
 - **The sitemap is empty while the flag is off.** When on it lists the landing page, the feed, the groups index, public groups, and level 0 posts, capped at 2000 posts.
 
+## Seeding
+
+- **Every seed account gets a random password per run, written to a gitignored `seed-credentials.local.json`.** Rejected a shared constant in the repository, which is a credential in version control whatever you call it. A rerun rotates the passwords rather than leaving an old one nobody has a record of.
+
 ## Testing
 
 - **pglite for the database suite.** Docker is not available in the build environment. `tests/db/supabase-shim.sql` creates the small part of a Supabase project that migrations depend on: an `auth` schema, `auth.users`, `auth.uid()`, and the `anon`, `authenticated`, and `service_role` roles. Grants are written out explicitly in `0006_rls.sql` so the harness gets the same permissions a real project does.

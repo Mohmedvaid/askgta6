@@ -66,7 +66,7 @@ Test counts: 212 unit, 38 database, 20 Playwright across desktop and mobile.
 | Discord and Google sign in | `app/auth/actions.ts`, `components/form/AuthForm.tsx` | Add provider credentials in Supabase Auth, then set `NEXT_PUBLIC_AUTH_DISCORD_ENABLED` or `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED` to `true`. The code path is complete; the buttons render only when the flag is on. |
 | Storage bucket | `supabase/migrations/0007_storage.sql` | The migration creates and configures the `avatars` bucket, but some projects refuse storage DDL. If yours does, `docs/DEPLOY.md` has the four click version. |
 | Admin list | `ADMIN_USER_IDS` | Empty by default, so `/admin/reports` 404s for everyone. Paste your auth user uuid after you sign up. |
-| Seed passwords | `supabase/seed/seed.ts` | The four seed accounts share the password `askgta6-seed-account`. Delete them or change it before real users arrive. |
+| Seed passwords | `seed-credentials.local.json` | Each seed account gets a random password per run, printed once and written to that gitignored file. Delete the accounts before real users arrive. |
 | Playwright content coverage | `tests/e2e/` | The suite runs against a build with no reachable database, so it covers the shell and the client side gate rather than posting and replying. Point it at a seeded Supabase project to extend it. |
 | Chromium revision | `playwright.config.ts` | `PLAYWRIGHT_CHROMIUM_EXECUTABLE` is read when set, for sandboxes whose preinstalled Chromium does not match the bundled revision. On a normal machine, `pnpm exec playwright install chromium` and ignore it. |
 

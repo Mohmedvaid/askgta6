@@ -1,3 +1,6 @@
+import { randomBytes } from "node:crypto";
+import { writeFileSync } from "node:fs";
+import path from "node:path";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { SEED_GROUPS, SEED_USERS, buildPosts, replyBodies } from "./content";
 import { avatarSvg } from "./avatars";
@@ -14,7 +17,12 @@ const supabase: SupabaseClient = createClient(url, serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
-const SEED_PASSWORD = "askgta6-seed-account";
+const CREDENTIALS_FILE = path.join(process.cwd(), "seed-credentials.local.json");
+
+/** A fresh password per account, per run. Printed once, then written to a gitignored file. */
+function generatePassword(): string {
+  return randomBytes(24).toString("base64url");
+}
 
 /** Deterministic so a reseed produces the same votes and the Top tab stays stable. */
 function pseudoRandom(seed: number): () => number {
@@ -27,30 +35,40 @@ function pseudoRandom(seed: number): () => number {
 
 async function ensureUsers(): Promise<Map<string, string>> {
   const ids = new Map<string, string>();
+  const credentials: { username: string; email: string; password: string }[] = [];
   const { data: existing } = await supabase.auth.admin.listUsers({ page: 1, perPage: 200 });
 
   for (const user of SEED_USERS) {
+    const password = generatePassword();
     const found = existing?.users.find((candidate) => candidate.email === user.email);
+
     if (found) {
+      // The account is already there, so rotate its password rather than leaving
+      // an old one lying around that nobody has a record of.
+      const { error } = await supabase.auth.admin.updateUserById(found.id, { password });
+      if (error) throw new Error(`could not rotate the password for ${user.email}: ${error.message}`);
       ids.set(user.key, found.id);
-      continue;
+    } else {
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: user.email,
+        password,
+        email_confirm: true,
+      });
+      if (error || !data.user) throw new Error(`could not create ${user.email}: ${error?.message}`);
+      ids.set(user.key, data.user.id);
     }
 
-    const { data, error } = await supabase.auth.admin.createUser({
-      email: user.email,
-      password: SEED_PASSWORD,
-      email_confirm: true,
-    });
-    if (error || !data.user) throw new Error(`could not create ${user.email}: ${error?.message}`);
-    ids.set(user.key, data.user.id);
+    credentials.push({ username: user.username, email: user.email, password });
   }
+
+  writeCredentials(credentials);
 
   for (const user of SEED_USERS) {
     const id = ids.get(user.key)!;
-    const path = `${id}/avatar.svg`;
+    const avatarPath = `${id}/avatar.svg`;
     await supabase.storage
       .from("avatars")
-      .upload(path, new Blob([avatarSvg(user.username)], { type: "image/svg+xml" }), {
+      .upload(avatarPath, new Blob([avatarSvg(user.username)], { type: "image/svg+xml" }), {
         upsert: true,
         contentType: "image/svg+xml",
       });
@@ -61,7 +79,7 @@ async function ensureUsers(): Promise<Map<string, string>> {
         username: user.username,
         display_name: user.displayName,
         progress: user.progress,
-        avatar_path: path,
+        avatar_path: avatarPath,
       })
       .eq("id", id);
   }
@@ -233,6 +251,20 @@ async function seedContent(userIds: Map<string, string>, groupIds: Map<string, s
     if (!error) accepted += 1;
   }
   console.log(`Marked ${accepted} accepted answers.`);
+}
+
+function writeCredentials(credentials: { username: string; email: string; password: string }[]): void {
+  writeFileSync(
+    CREDENTIALS_FILE,
+    `${JSON.stringify({ generatedAt: new Date().toISOString(), accounts: credentials }, null, 2)}\n`,
+    { mode: 0o600 },
+  );
+
+  console.log("\nSeed account passwords, shown once. They are also in seed-credentials.local.json, which is gitignored.");
+  for (const account of credentials) {
+    console.log(`  ${account.email}  ${account.password}`);
+  }
+  console.log("");
 }
 
 async function main(): Promise<void> {
