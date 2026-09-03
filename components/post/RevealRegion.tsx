@@ -14,31 +14,27 @@ type RevealRegionProps = {
 };
 
 /**
- * Asks the server for the content once and holds it for this session only.
- * Nothing is written down and the viewer's progress does not move.
+ * The body of a gated item. Asks the server for it once and holds it for this
+ * session only. Nothing is written down and the reader's progress does not move.
+ * Titles never come through here, because titles are never hidden.
  */
 export function RevealRegion({ target, variant, spoilerLevel }: RevealRegionProps) {
-  const [revealed, setRevealed] = useState<{ title: string | null; body: string } | null>(null);
+  const [body, setBody] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  if (revealed) {
+  if (body) {
     return (
-      <div className="reveal-transition">
-        {revealed.title ? (
-          <h3 className="font-display text-lg font-semibold text-text-primary">{revealed.title}</h3>
-        ) : null}
-        <div
-          className="prose-body mt-2 text-sm"
-          dangerouslySetInnerHTML={{ __html: revealed.body }}
-        />
-      </div>
+      <div
+        className="prose-body reveal-transition mt-3 text-sm"
+        dangerouslySetInnerHTML={{ __html: body }}
+      />
     );
   }
 
   return (
-    <div>
-      <SpoilerPlaceholder variant={variant} />
+    <div className="mt-3">
+      <SpoilerPlaceholder variant={variant} level={spoilerLevel} />
       <button
         type="button"
         disabled={pending}
@@ -47,14 +43,14 @@ export function RevealRegion({ target, variant, spoilerLevel }: RevealRegionProp
             track("reveal_clicked", { target: target.type, spoiler_level: spoilerLevel });
             const result = await revealContent(target);
             if (result.ok) {
-              setRevealed(result.data);
+              setBody(result.data.body);
               setError(null);
             } else {
               setError(result.error);
             }
           })
         }
-        className="mt-4 inline-flex items-center gap-2 rounded-md border border-spoiler px-3 py-1.5 text-sm font-semibold text-spoiler"
+        className="mt-3 inline-flex items-center gap-2 rounded-md border border-spoiler px-3 py-1.5 text-sm font-semibold text-spoiler"
       >
         {pending ? "Revealing" : "Reveal anyway"}
       </button>

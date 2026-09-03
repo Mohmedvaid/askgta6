@@ -14,10 +14,18 @@ One line each: what was chosen, what was rejected, why.
 ## Spoiler gate
 
 - **One pure function, `applySpoilerGate`, and one module that reads posts and replies.** Every page goes through `lib/queries/`, so no page can reach the database without gating. Rejected gating in each page, which would eventually be forgotten in one of them.
-- **A hidden item is a copy with `title` and `body` deleted, not blanked.** A blanked field still tells you the field existed; a length still tells you how long the post is. The unit suite asserts a one character body and a nine thousand character body serialize identically.
-- **The gate redacts title and body at any depth, not just the top level.** A profile's reply list embedded the parent post row, so a sealed reply shipped a level 7 headline in the payload even though nothing rendered it. Both halves are fixed: the query no longer embeds the parent, and the gate now walks nested rows so the next embed cannot reintroduce it. Rejected an allowlist of safe keys, which would need updating every time a column is added.
+- **Titles are visible at every level; only bodies are gated.** A card with no title tells a reader nothing, so they open it to find out, which is the opposite of what the gate is for. Showing the title lets them decide. The cost is that a spoiler in a title is now unguarded, so the composer says "Keep spoilers out of titles. Titles are always visible." and `spoiler_in_title` is its own report reason rather than a variant of `wrong_spoiler_level`.
+- **A hidden item is a copy with `body` deleted, not blanked.** A blanked field still tells you the field existed; a length still tells you how long the post is. The unit suite asserts a one character body and a nine thousand character body serialize identically.
+- **The gate redacts the body at any depth, not just the top level.** An embedded row is exactly how prose sneaks into the payload of something a reader cannot read yet. Rejected an allowlist of safe keys, which would need updating every time a column is added.
 - **Reveals are not persisted.** `revealContent` returns rendered markdown and the client holds it in component state. Rejected a `reveals` table: it is state to migrate, to garbage collect, and to leak.
 - **Metadata and Open Graph images are generated at level 0 for everyone.** A link preview is seen by people who never chose a progress level, so it can never carry a spoiler. Posts above level 0 get a generic card.
+
+## Anonymous progress
+
+- **A cookie, not a row.** A logged out reader's level lives in `askgta6_progress` for a year. Rejected an anonymous session row, which is a table to write, migrate, and garbage collect for a number that fits in one byte.
+- **The cookie being absent is the signal to ask.** There is no separate "seen the prompt" flag. Dismissing the sheet records 0, which is both an answer and the reason it never asks twice.
+- **`getViewerProgress` is the single reader.** Profile for a signed in person, cookie for a guest, 0 for someone who has not been asked. Every gated query calls it, so the two paths cannot drift.
+- **Signing up copies the cookie onto the profile, then clears it.** Adoption runs in the sign up action and in the auth callback, because magic link and OAuth never touch the action. After adoption the profile is the only source, so there is nothing to keep in step.
 
 ## Markdown
 

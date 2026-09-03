@@ -58,6 +58,7 @@ const visiblePost = {
 const hiddenPost: GatedPost = {
   hidden: true,
   id: "post-2",
+  title: "A late game thread about the ending",
   author_id: "aaaa",
   group_id: null,
   topic: "story",
@@ -144,11 +145,12 @@ describe("PostCard", () => {
     expect(screen.getByText("2 replies")).toBeInTheDocument();
   });
 
-  it("shows the placeholder and a reveal button for a hidden post", () => {
+  it("keeps the title and seals only the body for a hidden post", () => {
     render(<PostCard post={hiddenPost} />);
-    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "A late game thread about the ending" })).toBeInTheDocument();
+    expect(screen.getByText("Body hidden until Chapter 5")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reveal anyway" })).toBeInTheDocument();
-    expect(screen.getByText("Chapter 5")).toBeInTheDocument();
+    expect(screen.getAllByText("Chapter 5").length).toBeGreaterThan(0);
   });
 
   it("singularizes counts and marks answered threads", () => {
@@ -206,9 +208,10 @@ describe("LoadMore and PostBody", () => {
   });
 
   it("renders more placeholder bars in the full variant", () => {
-    const { container: card } = render(<SpoilerPlaceholder variant="card" />);
-    const { container: full } = render(<SpoilerPlaceholder variant="full" />);
+    const { container: card } = render(<SpoilerPlaceholder variant="card" level={2} />);
+    const { container: full } = render(<SpoilerPlaceholder variant="full" level={2} />);
     expect(full.querySelectorAll("div").length).toBeGreaterThan(card.querySelectorAll("div").length);
+    expect(screen.getAllByText("Body hidden until Chapter 2")).toHaveLength(2);
   });
 });
 
@@ -232,16 +235,24 @@ describe("SpoilerLevelControl", () => {
 });
 
 describe("SpoilerDemo", () => {
-  it("seals the sample cards at level 0 and opens them as the slider moves", () => {
+  it("keeps every title on screen and only seals the bodies", () => {
     render(<SpoilerDemo />);
+
+    // All three titles are readable at level 0, which is the point of the change.
     expect(screen.getByRole("heading", { name: /How big is Leonida/ })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: /second act job/ })).not.toBeInTheDocument();
-
-    const slider = screen.getByRole("slider", { name: /Drag to set/ });
-    fireEvent.change(slider, { target: { value: "7" } });
-
     expect(screen.getByRole("heading", { name: /second act job/ })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /near the end of the story/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /changed my read on the ending/ })).toBeInTheDocument();
+
+    expect(screen.getByText(/Trailer two shows swamp/)).toBeInTheDocument();
+    expect(screen.queryByText(/mid game answer/)).not.toBeInTheDocument();
+    expect(screen.getByText("Body hidden until Chapter 2")).toBeInTheDocument();
+    expect(screen.getByText("Body hidden until Chapter 6")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("slider", { name: /Drag to set/ }), { target: { value: "7" } });
+
+    expect(screen.getByText(/mid game answer/)).toBeInTheDocument();
+    expect(screen.getByText(/late game body/)).toBeInTheDocument();
+    expect(screen.queryByText(/Body hidden until/)).not.toBeInTheDocument();
   });
 });
 

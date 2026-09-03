@@ -10,6 +10,7 @@ const saveProfile = vi.fn();
 const setProgress = vi.fn();
 const uploadAvatar = vi.fn();
 const completeOnboarding = vi.fn();
+const dismissProgressPrompt = vi.fn();
 const signIn = vi.fn();
 const signUp = vi.fn();
 const sendMagicLink = vi.fn();
@@ -17,7 +18,7 @@ const push = vi.fn();
 const track = vi.fn();
 
 vi.mock("@/actions/groups", () => ({ createGroup, createInvite, redeemInvite }));
-vi.mock("@/actions/profile", () => ({ saveProfile, setProgress, uploadAvatar, setTheme: vi.fn() }));
+vi.mock("@/actions/profile", () => ({ saveProfile, setProgress, uploadAvatar, dismissProgressPrompt, setTheme: vi.fn() }));
 vi.mock("@/actions/onboarding", () => ({ completeOnboarding }));
 vi.mock("@/app/auth/actions", () => ({ signIn, signUp, sendMagicLink, signInWithProvider: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
@@ -32,6 +33,7 @@ const { GroupComposer } = await import("@/components/group/GroupComposer");
 const { InvitePanel } = await import("@/components/group/InvitePanel");
 const { PrivateGroupGate } = await import("@/components/group/PrivateGroupGate");
 const { ProgressPanel } = await import("@/components/shell/ProgressPanel");
+const { ProgressSheet } = await import("@/components/shell/ProgressSheet");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -292,5 +294,62 @@ describe("ProgressPanel", () => {
     await userEvent.click(screen.getByRole("button", { name: "Save progress" }));
 
     await vi.waitFor(() => expect(track).toHaveBeenCalledWith("progress_set", { level: 5, source: "settings" }));
+  });
+});
+
+describe("ProgressSheet", () => {
+  it("opens itself for a visitor who has never been asked", () => {
+    render(<ProgressSheet progress={0} promptOnLoad />);
+
+    expect(screen.getByRole("dialog", { name: "Where are you in the story?" })).toBeInTheDocument();
+    expect(screen.getByText("Haven't played")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+  });
+
+  it("stays shut for a reader who already answered, behind a trigger", async () => {
+    render(<ProgressSheet progress={3} promptOnLoad={false} />);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    const trigger = screen.getByRole("button", { name: "Level: Chapter 3" });
+
+    await userEvent.click(trigger);
+    expect(screen.getByRole("dialog", { name: "Where are you in the story?" })).toBeInTheDocument();
+  });
+
+  it("records level 0 when the visitor walks away from the question", async () => {
+    render(<ProgressSheet progress={0} promptOnLoad />);
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(dismissProgressPrompt).toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("does not record anything when a returning reader just closes it", async () => {
+    render(<ProgressSheet progress={4} promptOnLoad={false} />);
+    await userEvent.click(screen.getByRole("button", { name: "Level: Chapter 4" }));
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(dismissProgressPrompt).not.toHaveBeenCalled();
+  });
+
+  it("saves the level, closes, and reports it", async () => {
+    setProgress.mockResolvedValue({ ok: true, data: undefined });
+
+    render(<ProgressSheet progress={0} promptOnLoad />);
+    fireEvent.change(screen.getByRole("slider", { name: "How far you have played" }), { target: { value: "5" } });
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await vi.waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(track).toHaveBeenCalledWith("progress_set", { level: 5, source: "settings" });
+  });
+
+  it("keeps the sheet open and explains when the save fails", async () => {
+    setProgress.mockResolvedValue({ ok: false, error: "Your progress could not be saved." });
+
+    render(<ProgressSheet progress={0} promptOnLoad />);
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("could not be saved");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 });

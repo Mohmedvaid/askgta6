@@ -139,6 +139,7 @@ describe("small schemas", () => {
     expect(themeSchema.safeParse({ theme: "dark" }).success).toBe(true);
     expect(themeSchema.safeParse({ theme: "sepia" }).success).toBe(false);
     expect(reportSchema.safeParse({ targetType: "post", targetId: UUID, reason: "leak" }).success).toBe(true);
+    expect(reportSchema.safeParse({ targetType: "post", targetId: UUID, reason: "spoiler_in_title" }).success).toBe(true);
     expect(reportSchema.safeParse({ targetType: "post", targetId: UUID, reason: "boring" }).success).toBe(false);
     expect(moderationSchema.safeParse({ targetType: "reply", targetId: UUID, action: "hide" }).success).toBe(true);
     expect(moderationSchema.safeParse({ targetType: "reply", targetId: UUID, action: "ban" }).success).toBe(false);

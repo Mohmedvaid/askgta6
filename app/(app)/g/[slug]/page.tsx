@@ -8,7 +8,7 @@ import { PrivateGroupGate } from "@/components/group/PrivateGroupGate";
 import { joinGroup, leaveGroup } from "@/actions/groups";
 import { getGroupBySlug, isMember, listInvites } from "@/lib/queries/groups";
 import { listPosts, type FeedTab } from "@/lib/queries/posts";
-import { getViewer } from "@/lib/viewer";
+import { getViewer, getViewerProgress } from "@/lib/viewer";
 import { isTopic } from "@/lib/topics";
 import { groupIsIndexable, robotsFor } from "@/lib/indexing";
 
@@ -52,7 +52,7 @@ export default async function GroupPage({ params, searchParams }: { params: Para
 
   const result = await listPosts(
     { tab, topic, cursor, groupId: group.id, page: Number.isFinite(page) ? page : 0 },
-    viewer?.progress ?? 0,
+    await getViewerProgress(),
   );
 
   const moreParams = new URLSearchParams();

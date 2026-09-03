@@ -41,20 +41,21 @@ export function clampProgress(value: unknown): SpoilerLevel {
 /** The shape the gate needs. Anything else on the record is passed through untouched. */
 export type Gateable = { spoiler_level: number; body: string; title?: string };
 
-export type Gated<T extends Gateable> =
-  | (T & { hidden: false })
-  | (Omit<T, "title" | "body"> & { hidden: true });
+export type Gated<T extends Gateable> = (T & { hidden: false }) | (Omit<T, "body"> & { hidden: true });
 
-const REDACTED_KEYS: readonly string[] = ["title", "body"];
+// Titles are visible at every level, so a reader can tell what a thread is about
+// before deciding to open it. That puts the burden on authors to keep spoilers out
+// of titles, which the composer says plainly and the report reasons cover.
+const REDACTED_KEYS: readonly string[] = ["body"];
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && Object.getPrototypeOf(value) === Object.prototype;
 }
 
 /**
- * Drops every title and body at any depth. Going deeper than the top level is
- * deliberate: an embedded row (a reply's parent post, say) is exactly how a
- * headline sneaks into the payload of something the reader is not allowed to see.
+ * Drops every body at any depth. Going deeper than the top level is deliberate:
+ * an embedded row (a reply's parent post, say) is exactly how prose sneaks into
+ * the payload of something the reader is not allowed to read yet.
  */
 function redact(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(redact);
@@ -69,8 +70,9 @@ function redact(value: unknown): unknown {
 }
 
 /**
- * Returns the item as is when the viewer has reached its level, otherwise a
- * redacted copy with no title, no body, and no hint of their length.
+ * Returns the item as is when the viewer has reached its level, otherwise a copy
+ * with the body removed and no hint of its length. The title, topic, kind, author,
+ * counts, and timestamp all survive, because the placeholder is a real card.
  */
 export function applySpoilerGate<T extends Gateable>(item: T, viewerProgress: number): Gated<T> {
   if (item.spoiler_level <= clampProgress(viewerProgress)) {

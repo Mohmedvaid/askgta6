@@ -121,6 +121,22 @@ describe("triggers and constraints", () => {
     expect(r.rows[0]!.is_hidden).toBe(false);
   });
 
+  it("accepts spoiler_in_title as a report reason and still rejects nonsense", async () => {
+    const postId = await createPost(db, f.alice);
+
+    await db.query(
+      `insert into public.reports (reporter_id, target_type, target_id, reason) values ($1, 'post', $2, 'spoiler_in_title')`,
+      [f.bob, postId],
+    );
+
+    await expect(
+      db.query(
+        `insert into public.reports (reporter_id, target_type, target_id, reason) values ($1, 'post', $2, 'boring')`,
+        [f.carol, postId],
+      ),
+    ).rejects.toThrow();
+  });
+
   it("rate limits posts to five per author per minute", async () => {
     for (let i = 0; i < 5; i += 1) {
       await createPost(db, f.alice, { title: `Rate limit post number ${i}` });

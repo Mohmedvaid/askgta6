@@ -93,6 +93,9 @@ export function PostComposer({ action, defaults, submitLabel }: PostComposerProp
           placeholder="Ask it the way you would say it out loud"
           className={`mt-2 ${inputClass}`}
         />
+        <p className="mt-1 text-xs text-text-muted">
+          Keep spoilers out of titles. Titles are always visible.
+        </p>
       </div>
 
       <div>

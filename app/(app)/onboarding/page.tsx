@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { OnboardingForm } from "@/components/form/OnboardingForm";
-import { getViewer } from "@/lib/viewer";
+import { getViewer, getViewerProgress } from "@/lib/viewer";
 import { isPlaceholderUsername } from "@/lib/username";
 import { NOINDEX } from "@/lib/indexing";
 
@@ -20,7 +20,7 @@ export default async function OnboardingPage() {
           Pick a name people will see, then say how far you have played. You can change both later.
         </p>
       </header>
-      <OnboardingForm progress={viewer.progress} />
+      <OnboardingForm progress={await getViewerProgress()} />
     </div>
   );
 }

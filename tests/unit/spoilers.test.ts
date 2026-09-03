@@ -17,8 +17,8 @@ const post = (spoilerLevel: number) => ({
   vote_count: 3,
   reply_count: 2,
   created_at: "2026-01-01T00:00:00.000Z",
-  title: "A title that must not leak",
-  body: "A body that must not leak either.",
+  title: "A title a reader may always see",
+  body: "A body that must not leak.",
 });
 
 describe("clampProgress", () => {
@@ -71,7 +71,7 @@ describe("applySpoilerGate", () => {
   it("returns the whole item when the viewer has reached its level", () => {
     const gated = applySpoilerGate(post(3), 3);
     expect(gated.hidden).toBe(false);
-    expect(gated).toMatchObject({ title: "A title that must not leak", body: "A body that must not leak either." });
+    expect(gated).toMatchObject({ title: "A title a reader may always see", body: "A body that must not leak." });
   });
 
   it("returns the whole item when the viewer is ahead of it", () => {
@@ -79,29 +79,32 @@ describe("applySpoilerGate", () => {
     expect(gated.hidden).toBe(false);
   });
 
-  it("strips title and body when the viewer is behind it", () => {
+  it("keeps the title and strips only the body when the viewer is behind it", () => {
     const gated = applySpoilerGate(post(4), 1);
     expect(gated.hidden).toBe(true);
-    expect(Object.keys(gated)).not.toContain("title");
+    expect(Object.keys(gated)).toContain("title");
     expect(Object.keys(gated)).not.toContain("body");
+    expect(JSON.stringify(gated)).toContain("A title a reader may always see");
     expect(JSON.stringify(gated)).not.toContain("must not leak");
   });
 
-  it("leaks no length hint for a hidden item", () => {
+  it("leaks no body length hint for a hidden item", () => {
     const short = applySpoilerGate({ spoiler_level: 5, title: "Hi there", body: "x" }, 0);
     const long = applySpoilerGate({ spoiler_level: 5, title: "Hi there", body: "x".repeat(9000) }, 0);
     expect(JSON.stringify(short)).toBe(JSON.stringify(long));
   });
 
-  it("keeps the metadata a placeholder card needs", () => {
+  it("keeps everything a placeholder card needs, title included", () => {
     const gated = applySpoilerGate(post(6), 0);
     expect(gated).toMatchObject({
       id: "post-1",
+      title: "A title a reader may always see",
       topic: "story",
       kind: "question",
       spoiler_level: 6,
       vote_count: 3,
       reply_count: 2,
+      created_at: "2026-01-01T00:00:00.000Z",
     });
   });
 
@@ -121,7 +124,7 @@ describe("applySpoilerGate", () => {
   it("does not mutate the source item", () => {
     const source = post(5);
     applySpoilerGate(source, 0);
-    expect(source.title).toBe("A title that must not leak");
+    expect(source.body).toBe("A body that must not leak.");
   });
 
   it("gates a reply shape with no title at all", () => {
@@ -152,7 +155,7 @@ describe("canReveal", () => {
 });
 
 describe("applySpoilerGate on nested rows", () => {
-  it("strips a title carried by an embedded row, however deep", () => {
+  it("strips a body carried by an embedded row, however deep, and keeps its title", () => {
     const gated = applySpoilerGate(
       {
         spoiler_level: 7,
@@ -166,7 +169,7 @@ describe("applySpoilerGate on nested rows", () => {
 
     expect(gated.hidden).toBe(true);
     const payload = JSON.stringify(gated);
-    expect(payload).not.toContain("late game headline");
+    expect(payload).toContain("late game headline");
     expect(payload).not.toContain("Sealed");
   });
 
@@ -193,6 +196,7 @@ describe("applySpoilerGate on nested rows", () => {
 
     expect(visible.hidden).toBe(false);
     expect(JSON.stringify(visible)).toContain("A safe headline");
+    expect(JSON.stringify(visible)).toContain("Open.");
   });
 
   it("leaves values that are not plain objects alone", () => {

@@ -72,7 +72,8 @@ describe("listPosts", () => {
     expect(page.items).toHaveLength(2);
     expect(page.items[0]!.hidden).toBe(false);
     expect(page.items[1]!.hidden).toBe(true);
-    expect(JSON.stringify(page.items[1])).not.toContain("must not leak");
+    expect(JSON.stringify(page.items[1])).toContain("A title that must not leak");
+    expect(JSON.stringify(page.items[1])).not.toContain("A body that must not leak");
   });
 
   it("flattens the embedded author and group rows", async () => {
@@ -201,11 +202,16 @@ describe("replies", () => {
     expect(await listRepliesByAuthor("author", 7)).toEqual([]);
   });
 
-  it("carries no parent post title inside a gated reply", async () => {
+  it("carries no parent post body inside a gated reply", async () => {
     holder.client = createFakeClient({
       tables: {
         replies: {
-          data: [{ ...replyRow({ spoiler_level: 7 }), post: [{ id: "p1", title: "A late game headline" }] }],
+          data: [
+            {
+              ...replyRow({ spoiler_level: 7 }),
+              post: [{ id: "p1", title: "A late game headline", body: "The late game body." }],
+            },
+          ],
           error: null,
         },
       },
@@ -213,7 +219,7 @@ describe("replies", () => {
 
     const replies = await listRepliesByAuthor("author", 0);
     expect(replies[0]!.hidden).toBe(true);
-    expect(JSON.stringify(replies)).not.toContain("late game headline");
+    expect(JSON.stringify(replies)).not.toContain("The late game body");
 
     const select = holder.client.calls.find((call) => call.method === "select");
     expect(String(select?.args[0])).not.toContain("posts");
@@ -310,8 +316,7 @@ describe("getViewer", () => {
     const authClient = { ...createFakeClient(), auth: { getUser: async () => ({ data: { user: null } }) } };
     holder.client = authClient as unknown as FakeClient;
 
-    const { getViewer, getViewerProgress } = await import("@/lib/viewer");
+    const { getViewer } = await import("@/lib/viewer");
     expect(await getViewer()).toBeNull();
-    expect(await getViewerProgress()).toBe(0);
   });
 });

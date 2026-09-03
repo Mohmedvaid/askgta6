@@ -67,7 +67,7 @@ export const themeSchema = z.object({ theme: z.enum(["dark", "light"]) });
 export const reportSchema = z.object({
   targetType: z.enum(["post", "reply"]),
   targetId: uuid,
-  reason: z.enum(["spam", "leak", "harassment", "wrong_spoiler_level", "other"]),
+  reason: z.enum(["spam", "leak", "harassment", "wrong_spoiler_level", "spoiler_in_title", "other"]),
   note: z.string().trim().max(500, "Note is capped at 500 characters.").optional(),
 });
 

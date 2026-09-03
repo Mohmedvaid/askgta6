@@ -7,8 +7,9 @@ import { relativeTime } from "@/lib/relative-time";
 import type { GatedPost } from "@/lib/queries/posts";
 
 /**
- * One feed card. A hidden post reaches here with no title and no body at all,
- * so the placeholder is the only thing that can be rendered for it.
+ * One feed card. The title is always here, whatever the level, so a reader can
+ * tell what a thread is about. A gated post reaches this component with no body
+ * at all, so the sealed treatment is the only thing that can be rendered for it.
  */
 export function PostCard({ post }: { post: GatedPost }) {
   return (
@@ -27,15 +28,16 @@ export function PostCard({ post }: { post: GatedPost }) {
       </div>
 
       <div className="mt-3">
+        <Link href={`/p/${post.id}`} className="group block">
+          <h2 className="font-display text-xl leading-snug font-semibold text-text-primary group-hover:text-accent">
+            {post.title}
+          </h2>
+        </Link>
+
         {post.hidden ? (
           <RevealRegion target={{ type: "post", id: post.id }} variant="card" spoilerLevel={post.spoiler_level} />
         ) : (
-          <Link href={`/p/${post.id}`} className="group block">
-            <h2 className="font-display text-xl leading-snug font-semibold text-text-primary group-hover:text-accent">
-              {post.title}
-            </h2>
-            <p className="mt-1.5 text-sm text-text-secondary">{excerpt(post.body)}</p>
-          </Link>
+          <p className="mt-1.5 text-sm text-text-secondary">{excerpt(post.body)}</p>
         )}
       </div>
 

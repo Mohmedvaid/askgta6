@@ -8,12 +8,15 @@ export const contentType = "image/png";
 export const alt = "AskGTA6";
 
 
-/** Level 0 posts get their title. Everything else gets a generic card that cannot spoil. */
+/**
+ * Titles are visible at every level, so the preview carries the real one whatever
+ * the post is tagged. Bodies never reach this route.
+ */
 export default async function OpengraphImage({ params }: { params: Promise<{ postId: string }> }) {
   const { postId } = await params;
   const post = await getPost(postId, 0);
 
-  const heading = post && !post.hidden ? post.title : "A spoiler tagged thread";
+  const heading = post?.title ?? "A thread on AskGTA6";
   const topic = post ? TOPIC_LABELS[post.topic] : "Community";
 
   return new ImageResponse(

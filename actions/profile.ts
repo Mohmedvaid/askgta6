@@ -6,6 +6,8 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/viewer";
 import { firstIssue, profileSchema, progressSchema, themeSchema, type ActionResult } from "@/lib/validation";
 import { THEME_COOKIE } from "@/lib/theme/cookie";
+import { writeAnonymousProgress } from "@/lib/anonymous-progress";
+import { clampProgress } from "@/lib/spoilers";
 
 export async function saveProfile(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const viewer = await getViewer();
@@ -35,17 +37,35 @@ export async function saveProfile(_state: ActionResult | null, formData: FormDat
   return { ok: true, data: undefined };
 }
 
+/**
+ * Serves both readers. A signed in one goes through the set_progress function,
+ * a logged out one gets the cookie. Same form, same control, same result on screen.
+ */
 export async function setProgress(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
-  const viewer = await getViewer();
-  if (!viewer) return { ok: false, error: "Sign in to set your progress." };
-
   const parsed = progressSchema.safeParse({ progress: String(formData.get("progress") ?? "0") });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const viewer = await getViewer();
+
+  if (!viewer) {
+    await writeAnonymousProgress(clampProgress(parsed.data.progress));
+    revalidatePath("/", "layout");
+    return { ok: true, data: undefined };
+  }
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.rpc("set_progress", { new_level: parsed.data.progress });
   if (error) return { ok: false, error: "Your progress could not be saved." };
 
+  revalidatePath("/", "layout");
+  return { ok: true, data: undefined };
+}
+
+/** The one time sheet's dismiss path. Recording 0 is what stops it asking again. */
+export async function dismissProgressPrompt(): Promise<ActionResult> {
+  if (await getViewer()) return { ok: true, data: undefined };
+
+  await writeAnonymousProgress(0);
   revalidatePath("/", "layout");
   return { ok: true, data: undefined };
 }

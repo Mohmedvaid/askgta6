@@ -12,10 +12,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = await createSupabaseServerClient();
 
   const [posts, groups] = await Promise.all([
+    // Every public post, whatever its level. A post inside a private group is
+    // filtered out here as well as by row level security.
     supabase
       .from("posts")
-      .select("id, updated_at")
-      .eq("spoiler_level", 0)
+      .select("id, updated_at, group:groups(visibility)")
       .eq("is_hidden", false)
       .order("created_at", { ascending: false })
       .limit(MAX_POSTS),
@@ -32,11 +33,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "daily" as const,
       priority: 0.6,
     })),
-    ...(posts.data ?? []).map((post) => ({
-      url: `${siteUrl}/p/${post.id}`,
-      lastModified: new Date(post.updated_at),
-      changeFrequency: "weekly" as const,
-      priority: 0.7,
-    })),
+    ...(posts.data ?? [])
+      .filter((post) => {
+        const group = Array.isArray(post.group) ? post.group[0] : post.group;
+        return !group || group.visibility === "public";
+      })
+      .map((post) => ({
+        url: `${siteUrl}/p/${post.id}`,
+        lastModified: new Date(post.updated_at),
+        changeFrequency: "weekly" as const,
+        priority: 0.7,
+      })),
   ];
 }

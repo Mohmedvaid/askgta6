@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { type ActionResult } from "@/lib/validation";
+import { adoptAnonymousProgress } from "@/lib/adopt-progress";
 
 const credentials = z.object({
   email: z.string().trim().email("Enter a valid email address."),
@@ -42,7 +43,10 @@ export async function signUp(_state: ActionResult | null, formData: FormData): P
   });
 
   if (error) return { ok: false, error: "That account could not be created. Try a different email." };
-  if (!data.session) return { ok: true, data: undefined };
+  if (!data.session || !data.user) return { ok: true, data: undefined };
+
+  // Whatever level they picked as a guest follows them into the account.
+  await adoptAnonymousProgress(supabase, data.user.id);
 
   redirect("/onboarding");
 }

@@ -354,11 +354,6 @@ describe("profile", () => {
   });
 
   it("sets progress through the function and refuses bad levels", async () => {
-    expect(await setProgress(null, form({ progress: "3" }))).toEqual({
-      ok: false,
-      error: "Sign in to set your progress.",
-    });
-
     viewer.current = SIGNED_IN;
     expect(await setProgress(null, form({ progress: "3" }))).toEqual({ ok: true, data: undefined });
     expect(await setProgress(null, form({ progress: "9" }))).toMatchObject({ ok: false });

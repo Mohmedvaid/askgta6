@@ -162,7 +162,7 @@ describe("page metadata with the flag off and on", () => {
     expect(robotsOf(await feedMetadata(withQuery))).toMatchObject({ index: false, follow: false });
   });
 
-  it("makes a level 0 post indexable only when the flag is on", async () => {
+  it("makes a public post indexable only when the flag is on", async () => {
     const params = { params: Promise.resolve({ postId: UUID }) };
     holder.client = createFakeClient({ tables: { posts: { data: postRow(0), error: null } } });
 
@@ -195,12 +195,12 @@ describe("page metadata with the flag off and on", () => {
     });
   });
 
-  it("makes a profile with readable posts indexable only when the flag is on", async () => {
+  it("makes a profile indexable only when the flag is on, even with every body sealed", async () => {
     const withPosts = () =>
       createFakeClient({
         tables: {
           profiles: { data: { id: "u1", username: "mara" }, error: null },
-          posts: { data: [postRow(0)], error: null },
+          posts: { data: [postRow(7)], error: null },
         },
       });
 
@@ -236,7 +236,7 @@ describe("page metadata with the flag off and on", () => {
     setFlag("on");
     holder.client = createFakeClient({
       tables: {
-        posts: { data: [{ id: UUID, updated_at: "2026-06-01T12:00:00.000Z" }], error: null },
+        posts: { data: [{ id: UUID, updated_at: "2026-06-01T12:00:00.000Z", group: null }], error: null },
         groups: { data: [{ slug: "vice", created_at: "2026-01-01T00:00:00.000Z" }], error: null },
       },
     });
@@ -246,6 +246,26 @@ describe("page metadata with the flag off and on", () => {
     expect(urls).toContain("http://localhost:3000/feed");
     expect(urls).toContain("http://localhost:3000/g/vice");
     expect(urls).toContain(`http://localhost:3000/p/${UUID}`);
+  });
+
+  it("keeps private group posts out of the sitemap", async () => {
+    setFlag("on");
+    holder.client = createFakeClient({
+      tables: {
+        posts: {
+          data: [
+            { id: "public-post", updated_at: "2026-06-01T12:00:00.000Z", group: null },
+            { id: "private-post", updated_at: "2026-06-01T12:00:00.000Z", group: [{ visibility: "private" }] },
+          ],
+          error: null,
+        },
+        groups: { data: [], error: null },
+      },
+    });
+
+    const urls = (await sitemapModule.default()).map((entry) => entry.url);
+    expect(urls).toContain("http://localhost:3000/p/public-post");
+    expect(urls).not.toContain("http://localhost:3000/p/private-post");
   });
 });
 
@@ -302,10 +322,44 @@ describe("the permanent noindex list, whatever the flag says", () => {
     }
   });
 
-  it("never indexes a post gated above level 0, whatever the flag says", async () => {
+  it("indexes a post gated above level 0 once the flag is on, because its title is public", async () => {
+    setFlag("off");
+    holder.client = createFakeClient({ tables: { posts: { data: postRow(6), error: null } } });
+    expect(robotsOf(await postMetadata({ params: Promise.resolve({ postId: UUID }) }))).toMatchObject({
+      index: false,
+      follow: false,
+    });
+
+    setFlag("on");
+    holder.client = createFakeClient({ tables: { posts: { data: postRow(6), error: null } } });
+    expect(robotsOf(await postMetadata({ params: Promise.resolve({ postId: UUID }) }))).toMatchObject({
+      index: true,
+      follow: true,
+    });
+  });
+
+  it("never indexes a post inside a private group, whatever the flag says", async () => {
     for (const flag of ["off", "on"] as const) {
       setFlag(flag);
-      holder.client = createFakeClient({ tables: { posts: { data: postRow(4), error: null } } });
+      holder.client = createFakeClient({
+        tables: {
+          posts: {
+            data: { ...postRow(0), group: [{ slug: "night-shift", name: "Night shift", visibility: "private" }] },
+            error: null,
+          },
+        },
+      });
+      const metadata = await postMetadata({ params: Promise.resolve({ postId: UUID }) });
+      expect(robotsOf(metadata), `flag ${flag}`).toMatchObject({ index: false, follow: false });
+    }
+  });
+
+  it("never indexes a moderation hidden post, whatever the flag says", async () => {
+    for (const flag of ["off", "on"] as const) {
+      setFlag(flag);
+      holder.client = createFakeClient({
+        tables: { posts: { data: { ...postRow(0), is_hidden: true }, error: null } },
+      });
       const metadata = await postMetadata({ params: Promise.resolve({ postId: UUID }) });
       expect(robotsOf(metadata), `flag ${flag}`).toMatchObject({ index: false, follow: false });
     }
@@ -340,20 +394,6 @@ describe("the permanent noindex list, whatever the flag says", () => {
     });
   });
 
-  it("never indexes a profile whose every post is gated, whatever the flag says", async () => {
-    for (const flag of ["off", "on"] as const) {
-      setFlag(flag);
-      holder.client = createFakeClient({
-        tables: {
-          profiles: { data: { id: "u1", username: "mara" }, error: null },
-          posts: { data: [postRow(5)], error: null },
-        },
-      });
-      const metadata = await profileMetadata({ params: Promise.resolve({ username: "mara" }) });
-      expect(robotsOf(metadata), `flag ${flag}`).toMatchObject({ index: false, follow: false });
-    }
-  });
-
   it("never indexes a profile that does not exist", async () => {
     setFlag("on");
     holder.client = createFakeClient({ tables: { profiles: { data: null, error: null } } });
@@ -365,11 +405,12 @@ describe("the permanent noindex list, whatever the flag says", () => {
 });
 
 describe("the indexability rules themselves", () => {
-  it("only lets an ungated, visible post through", () => {
-    expect(postIsIndexable({ hidden: false, spoiler_level: 0 })).toBe(true);
-    expect(postIsIndexable({ hidden: false, spoiler_level: 1 })).toBe(false);
-    expect(postIsIndexable({ hidden: true, spoiler_level: 0 })).toBe(false);
-    expect(postIsIndexable({ hidden: false, spoiler_level: 0, is_hidden: true })).toBe(false);
+  it("lets every public post through whatever its level, and nothing else", () => {
+    expect(postIsIndexable({})).toBe(true);
+    expect(postIsIndexable({ group: null })).toBe(true);
+    expect(postIsIndexable({ group: { visibility: "public" } })).toBe(true);
+    expect(postIsIndexable({ group: { visibility: "private" } })).toBe(false);
+    expect(postIsIndexable({ is_hidden: true })).toBe(false);
     expect(postIsIndexable(null)).toBe(false);
   });
 
@@ -379,10 +420,9 @@ describe("the indexability rules themselves", () => {
     expect(groupIsIndexable(null)).toBe(false);
   });
 
-  it("only lets a profile with readable posts through", () => {
-    expect(profileIsIndexable(true, true)).toBe(true);
-    expect(profileIsIndexable(true, false)).toBe(false);
-    expect(profileIsIndexable(false, true)).toBe(false);
+  it("lets every real profile through", () => {
+    expect(profileIsIndexable(true)).toBe(true);
+    expect(profileIsIndexable(false)).toBe(false);
   });
 
   it("keeps arbitrary search queries out of the feed's index permission", () => {

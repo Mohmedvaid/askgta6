@@ -16,17 +16,20 @@ const SAMPLES = [
     id: "sample-2",
     spoiler_level: 2,
     title: "Best approach to the second act job",
-    body: "Placeholder for a mid game question that a new player should not read on the front page.",
+    body: "Placeholder for a mid game answer that a new player should not read on the front page.",
   },
   {
     id: "sample-6",
     spoiler_level: 6,
-    title: "The set piece near the end of the story",
-    body: "Placeholder for a late game thread that stays sealed until you say you have got there.",
+    title: "How the last mission changed my read on the ending",
+    body: "Placeholder for a late game body that stays sealed until you say you have got there.",
   },
 ];
 
-/** The landing page demo. Entirely client side, no data, no account needed. */
+/**
+ * The landing page demo. Entirely client side, no data, no account needed.
+ * Titles stay put as the slider moves; only the bodies seal and open.
+ */
 export function SpoilerDemo() {
   const [progress, setProgress] = useState(0);
   const gated = applySpoilerGateAll(SAMPLES, progress);
@@ -57,14 +60,12 @@ export function SpoilerDemo() {
         {gated.map((sample) => (
           <li key={sample.id} className="rounded-md border border-border bg-surface-0 p-5">
             <SpoilerBadge level={sample.spoiler_level} tone={sample.hidden ? "loud" : "quiet"} />
-            <div className="mt-3">
+            <h3 className="mt-3 font-display text-lg font-semibold text-text-primary">{sample.title}</h3>
+            <div className="mt-2">
               {sample.hidden ? (
-                <SpoilerPlaceholder variant="card" />
+                <SpoilerPlaceholder variant="card" level={sample.spoiler_level} />
               ) : (
-                <div className="reveal-transition">
-                  <h3 className="font-display text-lg font-semibold text-text-primary">{sample.title}</h3>
-                  <p className="mt-1.5 text-sm text-text-secondary">{sample.body}</p>
-                </div>
+                <p className="reveal-transition text-sm text-text-secondary">{sample.body}</p>
               )}
             </div>
           </li>

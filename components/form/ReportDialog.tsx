@@ -6,6 +6,7 @@ import { FieldError } from "./FieldError";
 import { submitReport } from "@/actions/reports";
 
 const REASONS = [
+  { value: "spoiler_in_title", label: "Spoiler in the title" },
   { value: "leak", label: "Leaked content" },
   { value: "wrong_spoiler_level", label: "Wrong spoiler level" },
   { value: "spam", label: "Spam" },

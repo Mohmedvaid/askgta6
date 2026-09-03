@@ -50,16 +50,14 @@ export function ReplyItem({
             <SpoilerBadge level={reply.spoiler_level} tone={reply.hidden ? "loud" : "quiet"} />
           </div>
 
-          <div className="mt-2">
-            {reply.hidden ? (
-              <RevealRegion target={{ type: "reply", id: reply.id }} variant="card" spoilerLevel={reply.spoiler_level} />
-            ) : (
-              <div
-                className="prose-body text-sm"
-                dangerouslySetInnerHTML={{ __html: renderMarkdown(reply.body) }}
-              />
-            )}
-          </div>
+          {reply.hidden ? (
+            <RevealRegion target={{ type: "reply", id: reply.id }} variant="card" spoilerLevel={reply.spoiler_level} />
+          ) : (
+            <div
+              className="prose-body mt-2 text-sm"
+              dangerouslySetInnerHTML={{ __html: renderMarkdown(reply.body) }}
+            />
+          )}
 
           <div className="mt-3 flex flex-wrap gap-4 text-xs">
             {canAccept ? (

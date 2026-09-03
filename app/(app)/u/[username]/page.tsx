@@ -20,15 +20,7 @@ type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { username } = await params;
   const profile = await getProfileByUsername(username);
-  // Read the profile the way a logged out visitor would. A profile whose every
-  // post is gated has nothing a search engine could usefully index.
-  const ungated = profile ? await listPosts({ authorId: profile.id }, 0) : null;
-  const hasUngatedPosts = Boolean(ungated?.items.some((post) => !post.hidden));
-
-  return {
-    title: username,
-    robots: robotsFor(profileIsIndexable(Boolean(profile), hasUngatedPosts)),
-  };
+  return { title: username, robots: robotsFor(profileIsIndexable(Boolean(profile))) };
 }
 
 export default async function ProfilePage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
@@ -103,7 +95,11 @@ export default async function ProfilePage({ params, searchParams }: { params: Pa
                 </div>
                 <div className="mt-2">
                   {reply.hidden ? (
-                    <RevealRegion target={{ type: "reply", id: reply.id }} variant="card" spoilerLevel={reply.spoiler_level} />
+                    <RevealRegion
+                      target={{ type: "reply", id: reply.id }}
+                      variant="card"
+                      spoilerLevel={reply.spoiler_level}
+                    />
                   ) : (
                     <div
                       className="prose-body text-sm"

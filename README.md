@@ -39,9 +39,13 @@ The database tests need no Docker. They boot Postgres in WebAssembly through pgl
 applySpoilerGate(item, viewerProgress)
 ```
 
-An item at or below the viewer's progress comes back whole. Anything above it comes back with `title` and `body` deleted and `hidden: true` set, keeping only what a placeholder card needs: id, topic, kind, level, counts, timestamp, author. There is no blanked field and no length, because either one leaks.
+An item at or below the reader's progress comes back whole. Anything above it comes back with `body` deleted and `hidden: true` set. Everything else survives: title, topic, kind, author, counts, timestamp. Titles are visible at every level so a reader can tell what a thread is about before deciding to open it, which puts the burden on authors to keep spoilers out of titles. The composer says so, and `spoiler_in_title` is a report reason.
 
-Every read of a post or a reply goes through `lib/queries/`, which calls the gate, so no page can reach the database without it. Reveals go through `revealContent`, return once, are held in component state, and never change the viewer's progress.
+There is no blanked body and no body length, because either one leaks. Redaction runs at any depth, so an embedded row cannot smuggle prose through.
+
+Every read of a post or a reply goes through `lib/queries/`, which calls the gate, so no page can reach the database without it. Reveals go through `revealContent`, return once, are held in component state, and never change the reader's progress.
+
+Progress itself has one reader, `getViewerProgress`. A signed in person's level comes from `profiles.progress`, a logged out one's from the `askgta6_progress` cookie (one year, SameSite=Lax), and a visitor who has never answered reads at 0. A first visit to any app page opens a one time bottom sheet asking where they are; walking away from it records 0 so it never asks twice. Signing up copies the cookie onto the new profile and drops it.
 
 ## Layout
 
@@ -78,9 +82,9 @@ Everything visual lives in one place each:
 
 ## Indexing
 
-`NEXT_PUBLIC_INDEXING` is `off` everywhere by default. While it is off, `robots.txt` disallows everything, the sitemap is empty, every page emits `noindex, nofollow`, and `next.config.ts` adds an `X-Robots-Tag` header on every response. Setting it to `on` opens up exactly four things: the landing page, the feed, public groups, and level 0 posts and the profiles that have them.
+`NEXT_PUBLIC_INDEXING` is `off` everywhere by default. While it is off, `robots.txt` disallows everything, the sitemap is empty, every page emits `noindex, nofollow`, and `next.config.ts` adds an `X-Robots-Tag` header on every response. Setting it to `on` opens up the landing page, the feed, public groups, public profiles, and every public post whatever its level, since every post has a readable title.
 
-These stay noindex whatever the flag says: `/auth/*`, `/settings`, `/admin/*`, `/new`, `/g/*/new`, `/g/join/*`, `/onboarding`, private group pages, the 404 and error pages, and any post or profile whose content is gated above level 0 for a logged out reader.
+These stay noindex whatever the flag says: `/auth/*`, `/settings`, `/admin/*`, `/new`, `/g/*/new`, `/g/join/*`, `/onboarding`, private group pages and the posts inside them, moderation hidden posts, and the 404 and error pages.
 
 The value is inlined at build time, so changing it needs a rebuild.
 

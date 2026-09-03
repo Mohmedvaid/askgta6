@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { createSupabaseServerClient } from "./supabase/server";
 import { clampProgress, type SpoilerLevel } from "./spoilers";
+import { readAnonymousProgress } from "./anonymous-progress";
 
 export type Viewer = {
   userId: string;
@@ -13,7 +14,6 @@ export type Viewer = {
 
 /**
  * The signed in person, or null. Cached per request so a page can ask more than once.
- * Logged out visitors read at progress 0, which is the whole point before launch.
  */
 export const getViewer = cache(async (): Promise<Viewer | null> => {
   const supabase = await createSupabaseServerClient();
@@ -38,7 +38,19 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
   };
 });
 
-export async function getViewerProgress(): Promise<SpoilerLevel> {
+/**
+ * The one place progress is read. A signed in reader's level comes from their
+ * profile, a logged out one's from the cookie, and an unanswered visitor reads
+ * at 0. Every gated query calls this, so the two paths can never drift.
+ */
+export const getViewerProgress = cache(async (): Promise<SpoilerLevel> => {
   const viewer = await getViewer();
-  return viewer?.progress ?? 0;
+  if (viewer) return viewer.progress;
+  return (await readAnonymousProgress()) ?? 0;
+});
+
+/** True when a logged out visitor has never been asked, which is what shows the sheet. */
+export async function needsProgressPrompt(): Promise<boolean> {
+  if (await getViewer()) return false;
+  return (await readAnonymousProgress()) === null;
 }

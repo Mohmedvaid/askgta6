@@ -28,17 +28,18 @@ beforeEach(() => {
 });
 
 describe("RevealRegion", () => {
-  it("shows the placeholder until the reader asks, then the content", async () => {
-    revealContent.mockResolvedValue({ ok: true, data: { title: "The hidden title", body: "<p>Hidden body.</p>" } });
+  it("names the level it is sealed behind, then shows the body once asked", async () => {
+    revealContent.mockResolvedValue({ ok: true, data: { title: null, body: "<p>Hidden body.</p>" } });
 
     render(<RevealRegion target={{ type: "post", id: "post-1" }} variant="card" spoilerLevel={5} />);
-    expect(screen.queryByText("The hidden title")).not.toBeInTheDocument();
+    expect(screen.getByText("Body hidden until Chapter 5")).toBeInTheDocument();
+    expect(screen.queryByText("Hidden body.")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Reveal anyway" }));
 
-    expect(await screen.findByRole("heading", { name: "The hidden title" })).toBeInTheDocument();
-    expect(screen.getByText("Hidden body.")).toBeInTheDocument();
+    expect(await screen.findByText("Hidden body.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reveal anyway" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Body hidden until/)).not.toBeInTheDocument();
     expect(track).toHaveBeenCalledWith("reveal_clicked", { target: "post", spoiler_level: 5 });
   });
 
@@ -60,6 +61,7 @@ describe("RevealRegion", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent("That post is no longer available.");
     expect(screen.getByRole("button", { name: "Reveal anyway" })).toBeInTheDocument();
+    expect(screen.getByText("Body hidden until Finished")).toBeInTheDocument();
   });
 });
 
@@ -226,6 +228,6 @@ describe("ReplyItem", () => {
       <ReplyItem reply={hidden} myVote={0} accepted={false} canAccept={false} isAuthor={false} acceptAction={noop} deleteAction={noop} />,
     );
     expect(screen.getByRole("button", { name: "Reveal anyway" })).toBeInTheDocument();
-    expect(screen.getByText("Chapter 4")).toBeInTheDocument();
+    expect(screen.getByText("Body hidden until Chapter 4")).toBeInTheDocument();
   });
 });

@@ -12,7 +12,7 @@ import { ReportDialog } from "@/components/form/ReportDialog";
 import { Empty } from "@/components/Empty";
 import { getPost } from "@/lib/queries/posts";
 import { listReplies } from "@/lib/queries/replies";
-import { getViewer } from "@/lib/viewer";
+import { getViewer, getViewerProgress } from "@/lib/viewer";
 import { getMyVote } from "@/actions/votes";
 import { acceptReply, deletePost } from "@/actions/posts";
 import { deleteReply } from "@/actions/replies";
@@ -27,10 +27,10 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const post = await getPost(postId, 0);
   if (!post) return { title: "Post not found", robots: robotsFor(false) };
 
-  const title = post.hidden ? "Spoiler tagged post" : post.title;
-  const description = post.hidden
-    ? "This thread is tagged past the trailer safe level. Open it on AskGTA6 to decide for yourself."
-    : `A ${post.kind} in ${post.topic} on AskGTA6.`;
+  // Titles are visible at every level, so the real one goes in the preview.
+  // The description never quotes the body, which is the part that is gated.
+  const title = post.title;
+  const description = `A ${post.kind} in ${post.topic} on AskGTA6.`;
 
   return {
     title,
@@ -47,10 +47,11 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function PostPage({ params }: { params: Params }) {
   const { postId } = await params;
   const viewer = await getViewer();
-  const post = await getPost(postId, viewer?.progress ?? 0);
+  const progress = await getViewerProgress();
+  const post = await getPost(postId, progress);
   if (!post) notFound();
 
-  const replies = await listReplies(postId, viewer?.progress ?? 0, post.accepted_reply_id);
+  const replies = await listReplies(postId, progress, post.accepted_reply_id);
   const myPostVote = await getMyVote("post", postId);
   const replyVotes = await Promise.all(replies.map((reply) => getMyVote("reply", reply.id)));
   const isAuthor = viewer?.userId === post.author_id;
@@ -75,13 +76,12 @@ export default async function PostPage({ params }: { params: Params }) {
           <VoteControl targetType="post" targetId={post.id} count={post.vote_count} myVote={myPostVote} />
 
           <div className="min-w-0 flex-1">
+            <h1 className="font-display text-3xl leading-tight font-bold text-text-primary">{post.title}</h1>
+
             {post.hidden ? (
               <RevealRegion target={{ type: "post", id: post.id }} variant="full" spoilerLevel={post.spoiler_level} />
             ) : (
-              <>
-                <h1 className="font-display text-3xl leading-tight font-bold text-text-primary">{post.title}</h1>
-                <PostBody body={post.body} />
-              </>
+              <PostBody body={post.body} />
             )}
 
             <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-text-muted">
@@ -137,7 +137,7 @@ export default async function PostPage({ params }: { params: Params }) {
 
       <section className="border-t border-border pt-8">
         {viewer ? (
-          <ReplyComposer postId={post.id} defaultSpoilerLevel={viewer.progress} />
+          <ReplyComposer postId={post.id} defaultSpoilerLevel={progress} />
         ) : (
           <Empty
             title="Sign in to reply"

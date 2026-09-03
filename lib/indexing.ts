@@ -65,14 +65,16 @@ export function isPermanentlyNoindex(pathname: string): boolean {
 }
 
 /**
- * A post is indexable only when a logged out reader can see all of it, which
- * means it exists, is not gated above level 0, and is not moderation hidden.
+ * Titles are visible at every level, so every public post is worth indexing
+ * whatever it is tagged. What still bars a post is moderation and group privacy:
+ * a post inside a private group must never reach a crawler.
  */
 export function postIsIndexable(
-  post: { hidden: boolean; spoiler_level: number; is_hidden?: boolean } | null,
+  post: { is_hidden?: boolean; group?: { visibility: "public" | "private" } | null } | null,
 ): boolean {
   if (!post) return false;
-  return post.hidden === false && post.spoiler_level === 0 && post.is_hidden !== true;
+  if (post.is_hidden === true) return false;
+  return !post.group || post.group.visibility === "public";
 }
 
 /** Only public groups are indexable. A private group is not even acknowledged. */
@@ -81,11 +83,11 @@ export function groupIsIndexable(group: { visibility: "public" | "private" } | n
 }
 
 /**
- * A profile is indexable when it exists and has at least one post a logged out
- * reader can actually read. A profile whose every post is gated has nothing to index.
+ * Every real profile is indexable now that titles are visible: a profile page
+ * always carries readable post titles even when every body on it is sealed.
  */
-export function profileIsIndexable(exists: boolean, hasUngatedPosts: boolean): boolean {
-  return exists && hasUngatedPosts;
+export function profileIsIndexable(exists: boolean): boolean {
+  return exists;
 }
 
 /** The feed is indexable, but a search result page for an arbitrary query is not. */
