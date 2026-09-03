@@ -18,6 +18,8 @@ import { acceptReply, deletePost } from "@/actions/posts";
 import { deleteReply } from "@/actions/replies";
 import { relativeTime } from "@/lib/relative-time";
 import { postIsIndexable, robotsFor } from "@/lib/indexing";
+import { postJsonLd } from "@/lib/structured-data";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 type Params = Promise<{ postId: string }>;
 
@@ -61,6 +63,7 @@ export default async function PostPage({ params }: { params: Params }) {
 
   return (
     <div className="space-y-10">
+      <JsonLd data={postJsonLd(post, replies)} />
       <article>
         <div className="flex flex-wrap items-center gap-3">
           <TopicBadge topic={post.topic} />

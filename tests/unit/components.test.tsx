@@ -9,6 +9,7 @@ import { SpoilerBadge } from "@/components/SpoilerBadge";
 import { SpoilerLevelControl } from "@/components/SpoilerLevelControl";
 import { TopicBadge } from "@/components/TopicBadge";
 import { SpoilerDemo } from "@/components/SpoilerDemo";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { PostCard } from "@/components/post/PostCard";
 import { PostBody } from "@/components/post/PostBody";
 import { PostList } from "@/components/post/PostList";
@@ -263,6 +264,22 @@ describe("SpoilerDemo", () => {
     const { container } = render(<SpoilerDemo />);
     expect(container.querySelector("input")).toBeNull();
     expect(container.querySelector("button")).toBeNull();
+  });
+});
+
+describe("JsonLd", () => {
+  it("renders nothing when the page is not indexable", () => {
+    const { container } = render(<JsonLd data={null} />);
+    expect(container.querySelector("script")).toBeNull();
+  });
+
+  it("escapes a title that would close the script tag early", () => {
+    const { container } = render(<JsonLd data={{ name: "</script><img onerror=x>" }} />);
+    const script = container.querySelector("script");
+
+    expect(script).toHaveAttribute("type", "application/ld+json");
+    expect(script?.innerHTML).not.toContain("</script>");
+    expect(JSON.parse(script?.textContent ?? "{}")).toEqual({ name: "</script><img onerror=x>" });
   });
 });
 

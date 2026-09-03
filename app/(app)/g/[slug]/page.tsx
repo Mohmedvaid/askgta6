@@ -11,6 +11,8 @@ import { listPosts, type FeedTab } from "@/lib/queries/posts";
 import { getViewer, getViewerProgress } from "@/lib/viewer";
 import { isTopic } from "@/lib/topics";
 import { groupIsIndexable, robotsFor } from "@/lib/indexing";
+import { groupJsonLd } from "@/lib/structured-data";
+import { JsonLd } from "@/components/seo/JsonLd";
 
 type Params = Promise<{ slug: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -64,6 +66,7 @@ export default async function GroupPage({ params, searchParams }: { params: Para
 
   return (
     <div className="space-y-8">
+      <JsonLd data={groupJsonLd(group)} />
       <header className="rounded-lg border border-border bg-surface-1 p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
