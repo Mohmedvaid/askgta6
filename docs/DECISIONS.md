@@ -15,6 +15,7 @@ One line each: what was chosen, what was rejected, why.
 
 - **One pure function, `applySpoilerGate`, and one module that reads posts and replies.** Every page goes through `lib/queries/`, so no page can reach the database without gating. Rejected gating in each page, which would eventually be forgotten in one of them.
 - **A hidden item is a copy with `title` and `body` deleted, not blanked.** A blanked field still tells you the field existed; a length still tells you how long the post is. The unit suite asserts a one character body and a nine thousand character body serialize identically.
+- **The gate redacts title and body at any depth, not just the top level.** A profile's reply list embedded the parent post row, so a sealed reply shipped a level 7 headline in the payload even though nothing rendered it. Both halves are fixed: the query no longer embeds the parent, and the gate now walks nested rows so the next embed cannot reintroduce it. Rejected an allowlist of safe keys, which would need updating every time a column is added.
 - **Reveals are not persisted.** `revealContent` returns rendered markdown and the client holds it in component state. Rejected a `reveals` table: it is state to migrate, to garbage collect, and to leak.
 - **Metadata and Open Graph images are generated at level 0 for everyone.** A link preview is seen by people who never chose a progress level, so it can never carry a spoiler. Posts above level 0 get a generic card.
 

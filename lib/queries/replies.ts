@@ -53,7 +53,10 @@ export async function listRepliesByAuthor(authorId: string, viewerProgress: numb
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("replies")
-    .select(`${REPLY_COLUMNS}, post:posts!replies_post_id_fkey(id, title, spoiler_level)`)
+    // No parent post embed. applySpoilerGate only strips a reply's own title and
+    // body, so an embedded post title would ride along inside a gated reply and
+    // put a level 7 headline in the payload of something the reader cannot see.
+    .select(REPLY_COLUMNS)
     .eq("author_id", authorId)
     .eq("is_hidden", false)
     .order("created_at", { ascending: false })

@@ -45,7 +45,28 @@ export type Gated<T extends Gateable> =
   | (T & { hidden: false })
   | (Omit<T, "title" | "body"> & { hidden: true });
 
-const REDACTED_KEYS = ["title", "body"] as const;
+const REDACTED_KEYS: readonly string[] = ["title", "body"];
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && Object.getPrototypeOf(value) === Object.prototype;
+}
+
+/**
+ * Drops every title and body at any depth. Going deeper than the top level is
+ * deliberate: an embedded row (a reply's parent post, say) is exactly how a
+ * headline sneaks into the payload of something the reader is not allowed to see.
+ */
+function redact(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redact);
+  if (!isPlainObject(value)) return value;
+
+  const copy: Record<string, unknown> = {};
+  for (const [key, nested] of Object.entries(value)) {
+    if (REDACTED_KEYS.includes(key)) continue;
+    copy[key] = redact(nested);
+  }
+  return copy;
+}
 
 /**
  * Returns the item as is when the viewer has reached its level, otherwise a
@@ -56,11 +77,7 @@ export function applySpoilerGate<T extends Gateable>(item: T, viewerProgress: nu
     return { ...item, hidden: false };
   }
 
-  const redacted: Record<string, unknown> = { ...item };
-  for (const key of REDACTED_KEYS) {
-    delete redacted[key];
-  }
-  return { ...redacted, hidden: true } as Gated<T>;
+  return { ...(redact(item) as Record<string, unknown>), hidden: true } as Gated<T>;
 }
 
 export function applySpoilerGateAll<T extends Gateable>(items: readonly T[], viewerProgress: number): Gated<T>[] {

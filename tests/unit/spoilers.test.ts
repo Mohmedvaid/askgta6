@@ -150,3 +150,58 @@ describe("canReveal", () => {
     expect(canReveal({ spoiler_level: -1 })).toBe(false);
   });
 });
+
+describe("applySpoilerGate on nested rows", () => {
+  it("strips a title carried by an embedded row, however deep", () => {
+    const gated = applySpoilerGate(
+      {
+        spoiler_level: 7,
+        body: "Sealed.",
+        author: { username: "mara", display_name: "Mara" },
+        post: [{ id: "p1", title: "A late game headline", body: "Sealed too." }],
+        group: { slug: "vice", name: "Vice City locals" },
+      },
+      0,
+    );
+
+    expect(gated.hidden).toBe(true);
+    const payload = JSON.stringify(gated);
+    expect(payload).not.toContain("late game headline");
+    expect(payload).not.toContain("Sealed");
+  });
+
+  it("leaves the metadata a placeholder card needs, including nested author and group", () => {
+    const gated = applySpoilerGate(
+      {
+        spoiler_level: 4,
+        body: "Sealed.",
+        author: { username: "mara", display_name: "Mara" },
+        group: { slug: "vice", name: "Vice City locals" },
+      },
+      0,
+    ) as Record<string, unknown>;
+
+    expect(gated.author).toEqual({ username: "mara", display_name: "Mara" });
+    expect(gated.group).toEqual({ slug: "vice", name: "Vice City locals" });
+  });
+
+  it("touches nothing nested when the item is visible", () => {
+    const visible = applySpoilerGate(
+      { spoiler_level: 0, body: "Open.", post: [{ title: "A safe headline" }] },
+      0,
+    ) as Record<string, unknown>;
+
+    expect(visible.hidden).toBe(false);
+    expect(JSON.stringify(visible)).toContain("A safe headline");
+  });
+
+  it("leaves values that are not plain objects alone", () => {
+    const created = new Date("2026-06-01T12:00:00.000Z");
+    const gated = applySpoilerGate({ spoiler_level: 5, body: "Sealed.", created_at: created }, 0) as Record<
+      string,
+      unknown
+    >;
+
+    expect(gated.created_at).toBe(created);
+  });
+});

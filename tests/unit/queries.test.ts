@@ -201,6 +201,24 @@ describe("replies", () => {
     expect(await listRepliesByAuthor("author", 7)).toEqual([]);
   });
 
+  it("carries no parent post title inside a gated reply", async () => {
+    holder.client = createFakeClient({
+      tables: {
+        replies: {
+          data: [{ ...replyRow({ spoiler_level: 7 }), post: [{ id: "p1", title: "A late game headline" }] }],
+          error: null,
+        },
+      },
+    });
+
+    const replies = await listRepliesByAuthor("author", 0);
+    expect(replies[0]!.hidden).toBe(true);
+    expect(JSON.stringify(replies)).not.toContain("late game headline");
+
+    const select = holder.client.calls.find((call) => call.method === "select");
+    expect(String(select?.args[0])).not.toContain("posts");
+  });
+
   it("gates a profile's replies too", async () => {
     holder.client = createFakeClient({
       tables: { replies: { data: [replyRow({ spoiler_level: 2 })], error: null } },
