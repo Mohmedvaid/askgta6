@@ -7,15 +7,20 @@ import { SubmitButton } from "./SubmitButton";
 import { FieldError } from "./FieldError";
 import { completeOnboarding } from "@/actions/onboarding";
 import { normalizeUsername } from "@/lib/username";
+import { track } from "@/lib/analytics";
 
 export function OnboardingForm({ progress }: { progress: number }) {
   const router = useRouter();
   const [state, formAction] = useActionState(completeOnboarding, null);
   const [name, setName] = useState("");
+  const [level, setLevel] = useState(progress);
 
   useEffect(() => {
-    if (state?.ok) router.push("/feed");
-  }, [state, router]);
+    if (!state?.ok) return;
+    track("signup_completed", { method: "password" });
+    track("progress_set", { level, source: "onboarding" });
+    router.push("/feed");
+  }, [state, level, router]);
 
   return (
     <form action={formAction} className="space-y-8">
@@ -39,6 +44,7 @@ export function OnboardingForm({ progress }: { progress: number }) {
       <SpoilerLevelControl
         name="progress"
         defaultValue={progress}
+        onChange={setLevel}
         label="How far have you played"
         hint="Before launch, leave this at the first level."
       />

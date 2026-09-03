@@ -84,6 +84,10 @@ These stay noindex whatever the flag says: `/auth/*`, `/settings`, `/admin/*`, `
 
 The value is inlined at build time, so changing it needs a rebuild.
 
+## Analytics
+
+Vercel Analytics, mounted in the root layout. `lib/analytics.ts` declares exactly four events with typed properties: `signup_completed`, `progress_set`, `post_created`, `reveal_clicked`. No payload carries a user id, a title, or a body.
+
 ## Moderation
 
 Five distinct reporters hide a post or a reply automatically. Users listed in `ADMIN_USER_IDS` can open `/admin/reports` to hide, unhide, or delete. That is the whole system. There is no roles table.

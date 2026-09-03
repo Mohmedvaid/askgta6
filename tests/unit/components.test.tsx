@@ -32,6 +32,8 @@ vi.mock("@/actions/profile", () => ({
   setProgress: async () => ({ ok: true, data: undefined }),
 }));
 
+vi.mock("@/lib/analytics", () => ({ track: vi.fn() }));
+
 const author = { username: "mara", display_name: "Mara", avatar_path: null };
 
 const visiblePost = {

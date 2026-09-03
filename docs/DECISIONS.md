@@ -52,6 +52,12 @@ One line each: what was chosen, what was rejected, why.
 - **A feed search result page is noindex even with the flag on.** Arbitrary query permutations are index bloat, and nobody searches for them.
 - **The sitemap is empty while the flag is off.** When on it lists the landing page, the feed, the groups index, public groups, and level 0 posts, capped at 2000 posts.
 
+## Analytics
+
+- **Four events, declared in one union, and no free form calls.** `lib/analytics.ts` types the properties per event, so adding a fifth event is a deliberate edit rather than a stray string.
+- **No user ids, no titles, no bodies in any payload.** Properties are counts and enums only. An analytics payload that carries a post title is a spoiler leak with a different label on it, and a test asserts the composer's payload contains neither the title nor the body.
+- **`post_created` fires from the submit handler, not from the result.** A successful create redirects, so there is no rendered state left to observe it from.
+
 ## Seeding
 
 - **Every seed account gets a random password per run, written to a gitignored `seed-credentials.local.json`.** Rejected a shared constant in the repository, which is a credential in version control whatever you call it. A rerun rotates the passwords rather than leaving an old one nobody has a record of.

@@ -52,7 +52,7 @@ export function ReplyItem({
 
           <div className="mt-2">
             {reply.hidden ? (
-              <RevealRegion target={{ type: "reply", id: reply.id }} variant="card" />
+              <RevealRegion target={{ type: "reply", id: reply.id }} variant="card" spoilerLevel={reply.spoiler_level} />
             ) : (
               <div
                 className="prose-body text-sm"

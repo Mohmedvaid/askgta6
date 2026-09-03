@@ -6,6 +6,7 @@ import { SubmitButton } from "./SubmitButton";
 import { FieldError } from "./FieldError";
 import { TOPICS, TOPIC_LABELS } from "@/lib/topics";
 import type { ActionResult } from "@/lib/validation";
+import { track } from "@/lib/analytics";
 
 type PostComposerDefaults = {
   postId?: string;
@@ -33,10 +34,24 @@ export function PostComposer({ action, defaults, submitLabel }: PostComposerProp
   const [title, setTitle] = useState(defaults.title ?? "");
   const [body, setBody] = useState(defaults.body ?? "");
   const [topic, setTopic] = useState(defaults.topic ?? "general");
+  const [spoilerLevel, setSpoilerLevel] = useState(defaults.spoilerLevel);
+  const [kind, setKind] = useState(defaults.kind ?? "question");
   const editing = Boolean(defaults.postId);
 
+  // A successful create redirects, so the event fires from the submit handler.
+  // Nothing about the title or the body is sent, only the shape of the post.
+  const announce = () => {
+    if (editing) return;
+    track("post_created", {
+      kind: kind === "discussion" ? "discussion" : "question",
+      topic,
+      spoiler_level: spoilerLevel,
+      in_group: Boolean(defaults.groupId),
+    });
+  };
+
   return (
-    <form action={formAction} className="space-y-6">
+    <form action={formAction} onSubmit={announce} className="space-y-6">
       {defaults.postId ? <input type="hidden" name="postId" value={defaults.postId} /> : null}
       {defaults.groupId ? <input type="hidden" name="groupId" value={defaults.groupId} /> : null}
 
@@ -44,19 +59,20 @@ export function PostComposer({ action, defaults, submitLabel }: PostComposerProp
         <fieldset>
           <legend className="text-sm font-semibold text-text-primary">What are you posting</legend>
           <div className="mt-3 flex gap-2">
-            {["question", "discussion"].map((kind) => (
+            {["question", "discussion"].map((option) => (
               <label
-                key={kind}
+                key={option}
                 className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-text-secondary"
               >
                 <input
                   type="radio"
                   name="kind"
-                  value={kind}
-                  defaultChecked={(defaults.kind ?? "question") === kind}
+                  value={option}
+                  defaultChecked={(defaults.kind ?? "question") === option}
+                  onChange={() => setKind(option)}
                   className="accent-accent"
                 />
-                {kind === "question" ? "Question" : "Discussion"}
+                {option === "question" ? "Question" : "Discussion"}
               </label>
             ))}
           </div>
@@ -118,6 +134,7 @@ export function PostComposer({ action, defaults, submitLabel }: PostComposerProp
       <SpoilerLevelControl
         name="spoilerLevel"
         defaultValue={defaults.spoilerLevel}
+        onChange={setSpoilerLevel}
         label="Spoiler level"
         hint="Not sure? Tag it higher. Hiding a safe post is harmless. Spoiling someone is not."
       />

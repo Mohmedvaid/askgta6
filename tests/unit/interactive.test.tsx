@@ -7,12 +7,14 @@ const castVote = vi.fn();
 const submitReport = vi.fn();
 const createReply = vi.fn();
 const moderate = vi.fn();
+const track = vi.fn();
 
 vi.mock("@/actions/reveal", () => ({ revealContent }));
 vi.mock("@/actions/votes", () => ({ castVote }));
 vi.mock("@/actions/reports", () => ({ submitReport }));
 vi.mock("@/actions/replies", () => ({ createReply }));
 vi.mock("@/actions/moderation", () => ({ moderate }));
+vi.mock("@/lib/analytics", () => ({ track }));
 
 const { RevealRegion } = await import("@/components/post/RevealRegion");
 const { VoteControl } = await import("@/components/post/VoteControl");
@@ -29,7 +31,7 @@ describe("RevealRegion", () => {
   it("shows the placeholder until the reader asks, then the content", async () => {
     revealContent.mockResolvedValue({ ok: true, data: { title: "The hidden title", body: "<p>Hidden body.</p>" } });
 
-    render(<RevealRegion target={{ type: "post", id: "post-1" }} variant="card" />);
+    render(<RevealRegion target={{ type: "post", id: "post-1" }} variant="card" spoilerLevel={5} />);
     expect(screen.queryByText("The hidden title")).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Reveal anyway" }));
@@ -37,12 +39,13 @@ describe("RevealRegion", () => {
     expect(await screen.findByRole("heading", { name: "The hidden title" })).toBeInTheDocument();
     expect(screen.getByText("Hidden body.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reveal anyway" })).not.toBeInTheDocument();
+    expect(track).toHaveBeenCalledWith("reveal_clicked", { target: "post", spoiler_level: 5 });
   });
 
   it("renders a reply reveal with no heading", async () => {
     revealContent.mockResolvedValue({ ok: true, data: { title: null, body: "<p>Just a body.</p>" } });
 
-    render(<RevealRegion target={{ type: "reply", id: "reply-1" }} variant="card" />);
+    render(<RevealRegion target={{ type: "reply", id: "reply-1" }} variant="card" spoilerLevel={3} />);
     await userEvent.click(screen.getByRole("button", { name: "Reveal anyway" }));
 
     expect(await screen.findByText("Just a body.")).toBeInTheDocument();
@@ -52,7 +55,7 @@ describe("RevealRegion", () => {
   it("keeps the placeholder and explains when the reveal fails", async () => {
     revealContent.mockResolvedValue({ ok: false, error: "That post is no longer available." });
 
-    render(<RevealRegion target={{ type: "post", id: "gone" }} variant="full" />);
+    render(<RevealRegion target={{ type: "post", id: "gone" }} variant="full" spoilerLevel={7} />);
     await userEvent.click(screen.getByRole("button", { name: "Reveal anyway" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("That post is no longer available.");

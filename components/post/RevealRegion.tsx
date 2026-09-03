@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { revealContent } from "@/actions/reveal";
+import { track } from "@/lib/analytics";
 import { SpoilerPlaceholder } from "./SpoilerPlaceholder";
 
 type RevealTarget = { type: "post" | "reply"; id: string };
@@ -9,13 +10,14 @@ type RevealTarget = { type: "post" | "reply"; id: string };
 type RevealRegionProps = {
   target: RevealTarget;
   variant: "card" | "full";
+  spoilerLevel: number;
 };
 
 /**
  * Asks the server for the content once and holds it for this session only.
  * Nothing is written down and the viewer's progress does not move.
  */
-export function RevealRegion({ target, variant }: RevealRegionProps) {
+export function RevealRegion({ target, variant, spoilerLevel }: RevealRegionProps) {
   const [revealed, setRevealed] = useState<{ title: string | null; body: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -42,6 +44,7 @@ export function RevealRegion({ target, variant }: RevealRegionProps) {
         disabled={pending}
         onClick={() =>
           startTransition(async () => {
+            track("reveal_clicked", { target: target.type, spoiler_level: spoilerLevel });
             const result = await revealContent(target);
             if (result.ok) {
               setRevealed(result.data);

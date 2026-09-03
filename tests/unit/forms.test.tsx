@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 const createPost = vi.fn();
@@ -14,12 +14,14 @@ const signIn = vi.fn();
 const signUp = vi.fn();
 const sendMagicLink = vi.fn();
 const push = vi.fn();
+const track = vi.fn();
 
 vi.mock("@/actions/groups", () => ({ createGroup, createInvite, redeemInvite }));
 vi.mock("@/actions/profile", () => ({ saveProfile, setProgress, uploadAvatar, setTheme: vi.fn() }));
 vi.mock("@/actions/onboarding", () => ({ completeOnboarding }));
 vi.mock("@/app/auth/actions", () => ({ signIn, signUp, sendMagicLink, signInWithProvider: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+vi.mock("@/lib/analytics", () => ({ track }));
 
 const { PostComposer } = await import("@/components/form/PostComposer");
 const { ProfileForm } = await import("@/components/form/ProfileForm");
@@ -58,6 +60,40 @@ describe("PostComposer", () => {
     expect(screen.queryByLabelText("Question")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Title")).toHaveValue("A title");
     expect(screen.getByText("Chapter 3")).toBeInTheDocument();
+  });
+
+  it("reports the shape of a new post, and nothing a reader wrote", async () => {
+    createPost.mockResolvedValue({ ok: true, data: undefined });
+
+    render(<PostComposer action={createPost} defaults={{ spoilerLevel: 2 }} submitLabel="Publish" />);
+    await fillPost();
+    await userEvent.selectOptions(screen.getByLabelText("Topic"), "vehicles");
+    await userEvent.click(screen.getByLabelText("Discussion"));
+    await userEvent.click(screen.getByRole("button", { name: "Publish" }));
+
+    expect(track).toHaveBeenCalledWith("post_created", {
+      kind: "discussion",
+      topic: "vehicles",
+      spoiler_level: 2,
+      in_group: false,
+    });
+    const payload = JSON.stringify(track.mock.calls);
+    expect(payload).not.toContain("Leonida");
+    expect(payload).not.toContain("coastline");
+  });
+
+  it("sends no post_created event when editing an existing post", async () => {
+    createPost.mockResolvedValue({ ok: true, data: undefined });
+
+    render(
+      <PostComposer
+        action={createPost}
+        defaults={{ postId: "p1", title: "A title", body: "A body", topic: "map", spoilerLevel: 0 }}
+        submitLabel="Save changes"
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(track).not.toHaveBeenCalled();
   });
 
   it("keeps the draft when the server rejects the post", async () => {
@@ -127,6 +163,8 @@ describe("OnboardingForm", () => {
     await userEvent.click(screen.getByRole("button", { name: "Start reading" }));
 
     await vi.waitFor(() => expect(push).toHaveBeenCalledWith("/feed"));
+    expect(track).toHaveBeenCalledWith("signup_completed", { method: "password" });
+    expect(track).toHaveBeenCalledWith("progress_set", { level: 0, source: "onboarding" });
   });
 
   it("stays put and explains when the name is taken", async () => {
@@ -243,5 +281,16 @@ describe("ProgressPanel", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Save progress" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("could not be saved");
+    expect(track).not.toHaveBeenCalled();
+  });
+
+  it("reports the level once the save comes back ok", async () => {
+    setProgress.mockResolvedValue({ ok: true, data: undefined });
+
+    render(<ProgressPanel progress={2} />);
+    fireEvent.change(screen.getByRole("slider", { name: "How far you have played" }), { target: { value: "5" } });
+    await userEvent.click(screen.getByRole("button", { name: "Save progress" }));
+
+    await vi.waitFor(() => expect(track).toHaveBeenCalledWith("progress_set", { level: 5, source: "settings" }));
   });
 });

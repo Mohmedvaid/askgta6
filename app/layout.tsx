@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { cookies } from "next/headers";
 import { fontVariables } from "@/lib/theme/fonts";
 import { THEME_COOKIE, resolveTheme } from "@/lib/theme/cookie";
@@ -25,7 +26,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="en" data-theme={theme} className={fontVariables} suppressHydrationWarning>
-      <body className="min-h-dvh antialiased">{children}</body>
+      <body className="min-h-dvh antialiased">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }

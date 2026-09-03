@@ -76,7 +76,7 @@ export default async function PostPage({ params }: { params: Params }) {
 
           <div className="min-w-0 flex-1">
             {post.hidden ? (
-              <RevealRegion target={{ type: "post", id: post.id }} variant="full" />
+              <RevealRegion target={{ type: "post", id: post.id }} variant="full" spoilerLevel={post.spoiler_level} />
             ) : (
               <>
                 <h1 className="font-display text-3xl leading-tight font-bold text-text-primary">{post.title}</h1>

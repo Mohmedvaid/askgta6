@@ -28,7 +28,7 @@ export function PostCard({ post }: { post: GatedPost }) {
 
       <div className="mt-3">
         {post.hidden ? (
-          <RevealRegion target={{ type: "post", id: post.id }} variant="card" />
+          <RevealRegion target={{ type: "post", id: post.id }} variant="card" spoilerLevel={post.spoiler_level} />
         ) : (
           <Link href={`/p/${post.id}`} className="group block">
             <h2 className="font-display text-xl leading-snug font-semibold text-text-primary group-hover:text-accent">
