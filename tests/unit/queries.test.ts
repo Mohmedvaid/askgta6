@@ -8,7 +8,9 @@ vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => holder.client,
 }));
 
-const { getPost, getPostRaw, listPosts, PAGE_SIZE } = await import("@/lib/queries/posts");
+const { getPost, getPostRaw, listPosts, listSyndicatedPosts, PAGE_SIZE } = await import(
+  "@/lib/queries/posts"
+);
 const { listReplies, listRepliesByAuthor } = await import("@/lib/queries/replies");
 const { getGroupBySlug, isMember, listDiscoverableGroups, listInvites, listMyGroups } = await import(
   "@/lib/queries/groups"
@@ -318,5 +320,96 @@ describe("getViewer", () => {
 
     const { getViewer } = await import("@/lib/viewer");
     expect(await getViewer()).toBeNull();
+  });
+});
+
+describe("listSyndicatedPosts", () => {
+  it("returns a title, a link id, an author, and a date, and nothing else", async () => {
+    holder.client = createFakeClient({
+      tables: {
+        posts: {
+          data: [
+            {
+              id: "post-1",
+              title: "How big is Leonida",
+              created_at: "2026-06-01T12:00:00.000Z",
+              author: [author],
+              group: null,
+            },
+          ],
+          error: null,
+        },
+      },
+    });
+
+    const items = await listSyndicatedPosts();
+
+    expect(items).toEqual([
+      { id: "post-1", title: "How big is Leonida", author: "Mara", createdAt: "2026-06-01T12:00:00.000Z" },
+    ]);
+    // No body was selected, so there is nothing for a feed reader to leak.
+    expect(Object.keys(items[0] ?? {})).toEqual(["id", "title", "author", "createdAt"]);
+  });
+
+  it("filters to level 0 and drops posts inside a private group", async () => {
+    holder.client = createFakeClient({
+      tables: {
+        posts: {
+          data: [
+            { id: "a", title: "Public", created_at: "2026-06-01T12:00:00.000Z", author: [author], group: null },
+            {
+              id: "b",
+              title: "Inside a private room",
+              created_at: "2026-06-01T12:00:00.000Z",
+              author: [author],
+              group: [{ visibility: "private" }],
+            },
+          ],
+          error: null,
+        },
+      },
+    });
+
+    const items = await listSyndicatedPosts();
+
+    expect(items.map((item) => item.id)).toEqual(["a"]);
+    expect(holder.client.calls).toContainEqual({ method: "eq", args: ["spoiler_level", 0] });
+    expect(holder.client.calls).toContainEqual({ method: "eq", args: ["is_hidden", false] });
+  });
+
+  it("scopes to one group when given one, and to the main feed when not", async () => {
+    holder.client = createFakeClient();
+    await listSyndicatedPosts("group-1");
+    expect(holder.client.calls).toContainEqual({ method: "eq", args: ["group_id", "group-1"] });
+
+    holder.client = createFakeClient();
+    await listSyndicatedPosts();
+    expect(holder.client.calls).toContainEqual({ method: "is", args: ["group_id", null] });
+  });
+
+  it("names an author with no display name by their username", async () => {
+    holder.client = createFakeClient({
+      tables: {
+        posts: {
+          data: [
+            {
+              id: "a",
+              title: "t",
+              created_at: "2026-06-01T12:00:00.000Z",
+              author: [{ username: "mona", display_name: null }],
+              group: null,
+            },
+          ],
+          error: null,
+        },
+      },
+    });
+
+    expect((await listSyndicatedPosts())[0]?.author).toBe("mona");
+  });
+
+  it("returns nothing when the query errors", async () => {
+    holder.client = createFakeClient({ tables: { posts: { data: null, error: { message: "nope" } } } });
+    expect(await listSyndicatedPosts()).toEqual([]);
   });
 });

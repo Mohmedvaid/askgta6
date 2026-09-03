@@ -10,7 +10,7 @@ import { getGroupBySlug, isMember, listInvites } from "@/lib/queries/groups";
 import { listPosts, type FeedTab } from "@/lib/queries/posts";
 import { getViewer, getViewerProgress } from "@/lib/viewer";
 import { isTopic } from "@/lib/topics";
-import { groupIsIndexable, robotsFor } from "@/lib/indexing";
+import { groupIsIndexable, indexingEnabled, robotsFor } from "@/lib/indexing";
 import { groupJsonLd } from "@/lib/structured-data";
 import { JsonLd } from "@/components/seo/JsonLd";
 
@@ -26,7 +26,20 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { slug } = await params;
   const group = await getGroupBySlug(slug);
   // A private group the viewer cannot see comes back null, so it is never indexable.
-  return { title: group?.name ?? "Group", robots: robotsFor(groupIsIndexable(group)) };
+  const indexable = groupIsIndexable(group);
+
+  return {
+    title: group?.name ?? "Group",
+    robots: robotsFor(indexable),
+    alternates:
+      indexable && indexingEnabled() && group
+        ? {
+            types: {
+              "application/rss+xml": [{ url: `/g/${group.slug}/feed.xml`, title: group.name }],
+            },
+          }
+        : undefined,
+  };
 }
 
 export default async function GroupPage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {

@@ -152,3 +152,50 @@ export async function getPostRaw(postId: string): Promise<PostRow | null> {
   if (error || !data) return null;
   return normalize(data as Record<string, unknown>);
 }
+
+export const SYNDICATION_LIMIT = 50;
+
+export type SyndicatedPost = { id: string; title: string; author: string; createdAt: string };
+
+/**
+ * The rows an RSS feed carries: level 0 only, never hidden, never inside a private
+ * group. No body is selected, so there is nothing for the gate to hold back and
+ * nothing a feed reader could leak. Level 0 is the whole rule: a feed reader has
+ * no shield, so anything above trailer level has no business being pushed to one.
+ */
+export async function listSyndicatedPosts(groupId?: string): Promise<SyndicatedPost[]> {
+  const supabase = await createSupabaseServerClient();
+
+  let query = supabase
+    .from("posts")
+    .select("id, title, created_at, author:profiles!posts_author_id_fkey(username, display_name), group:groups(visibility)")
+    .eq("is_hidden", false)
+    .eq("spoiler_level", 0)
+    .order("created_at", { ascending: false })
+    .limit(SYNDICATION_LIMIT);
+
+  query = groupId ? query.eq("group_id", groupId) : query.is("group_id", null);
+
+  const { data, error } = await query;
+  if (error || !data) return [];
+
+  return (data as Record<string, unknown>[])
+    .map((row) => {
+      const author = Array.isArray(row.author) ? row.author[0] : row.author;
+      const group = Array.isArray(row.group) ? row.group[0] : row.group;
+      return { ...row, author, group } as {
+        id: string;
+        title: string;
+        created_at: string;
+        author: { username: string; display_name: string | null } | null;
+        group: { visibility: "public" | "private" } | null;
+      };
+    })
+    .filter((row) => !row.group || row.group.visibility === "public")
+    .map((row) => ({
+      id: row.id,
+      title: row.title,
+      author: row.author?.display_name || row.author?.username || "Someone",
+      createdAt: row.created_at,
+    }));
+}
