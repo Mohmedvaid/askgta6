@@ -1,76 +1,58 @@
-"use client";
-
-import { useState } from "react";
-import { SPOILER_LEVELS, applySpoilerGateAll, clampProgress, spoilerLevelInfo } from "@/lib/spoilers";
+import { applySpoilerGate } from "@/lib/spoilers";
 import { SpoilerPlaceholder } from "./post/SpoilerPlaceholder";
 import { SpoilerBadge } from "./SpoilerBadge";
 
-const SAMPLES = [
-  {
-    id: "sample-0",
-    spoiler_level: 0,
-    title: "How big is Leonida compared to San Andreas",
-    body: "Trailer two shows swamp, coastline, and city in one pass. Everyone has a guess. Post yours.",
-  },
-  {
-    id: "sample-2",
-    spoiler_level: 2,
-    title: "Best approach to the second act job",
-    body: "Placeholder for a mid game answer that a new player should not read on the front page.",
-  },
-  {
-    id: "sample-6",
-    spoiler_level: 6,
-    title: "How the last mission changed my read on the ending",
-    body: "Placeholder for a late game body that stays sealed until you say you have got there.",
-  },
-];
+const SAMPLE = {
+  id: "sample",
+  spoiler_level: 4,
+  title: "Best approach to the fourth act job",
+  body: "Placeholder for a mid game answer that a reader who has not got there should not meet on the front page.",
+};
 
 /**
- * The landing page demo. Entirely client side, no data, no account needed.
- * Titles stay put as the slider moves; only the bodies seal and open.
+ * The landing demo. One post, rendered twice through the real gate: once with the
+ * shield off, which is the default, and once with it on at Haven't played. No
+ * state, no data, no account. It is static so the landing page can be too.
  */
 export function SpoilerDemo() {
-  const [progress, setProgress] = useState(0);
-  const gated = applySpoilerGateAll(SAMPLES, clampProgress(progress));
-  const info = spoilerLevelInfo(progress);
+  const open = applySpoilerGate(SAMPLE, "none");
+  const sealed = applySpoilerGate(SAMPLE, 0);
 
   return (
-    <div className="rounded-lg border border-border bg-surface-1 p-6 md:p-8">
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <label htmlFor="demo-progress" className="text-sm font-semibold text-text-primary">
-          Drag to set how far you have played
-        </label>
-        <span className="text-sm font-semibold text-accent">{info.label}</span>
+    <div className="grid gap-4 md:grid-cols-2">
+      <Panel caption="Shield off" note="The default. Everything reads in full.">
+        <SpoilerBadge level={open.spoiler_level} tone="quiet" />
+        <h3 className="mt-3 font-display text-lg font-semibold text-text-primary">{open.title}</h3>
+        <p className="mt-2 text-sm text-text-secondary">{open.hidden ? null : open.body}</p>
+      </Panel>
+
+      <Panel caption="Shield on, Haven't played" note="Title stays. Body waits.">
+        <SpoilerBadge level={sealed.spoiler_level} tone="loud" />
+        <h3 className="mt-3 font-display text-lg font-semibold text-text-primary">{sealed.title}</h3>
+        <div className="mt-2">
+          <SpoilerPlaceholder variant="card" level={sealed.spoiler_level} />
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+function Panel({
+  caption,
+  note,
+  children,
+}: {
+  caption: string;
+  note: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-surface-1 p-5 md:p-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="text-sm font-semibold text-text-primary">{caption}</span>
+        <span className="text-xs text-text-muted">{note}</span>
       </div>
-
-      <input
-        id="demo-progress"
-        type="range"
-        min={0}
-        max={SPOILER_LEVELS.length - 1}
-        step={1}
-        value={progress}
-        onChange={(event) => setProgress(Number(event.target.value))}
-        className="mt-4 w-full accent-accent"
-      />
-      <p className="mt-2 text-sm text-text-secondary">{info.description}</p>
-
-      <ul className="mt-8 space-y-4">
-        {gated.map((sample) => (
-          <li key={sample.id} className="rounded-md border border-border bg-surface-0 p-5">
-            <SpoilerBadge level={sample.spoiler_level} tone={sample.hidden ? "loud" : "quiet"} />
-            <h3 className="mt-3 font-display text-lg font-semibold text-text-primary">{sample.title}</h3>
-            <div className="mt-2">
-              {sample.hidden ? (
-                <SpoilerPlaceholder variant="card" level={sample.spoiler_level} />
-              ) : (
-                <p className="reveal-transition text-sm text-text-secondary">{sample.body}</p>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
+      <div className="mt-4 rounded-md border border-border bg-surface-0 p-5">{children}</div>
     </div>
   );
 }

@@ -36,10 +36,11 @@ export default async function LandingPage() {
 
       <section className="mt-20 max-w-3xl md:mt-28">
         <h1 className="font-display text-5xl leading-[1.05] font-bold text-text-primary md:text-7xl">
-          Talk about GTA VI without getting spoiled.
+          Talk about GTA VI. Seal the parts you have not reached.
         </h1>
         <p className="mt-6 max-w-xl text-lg text-text-secondary">
-          Say how far you have played. Every post and reply past that point stays sealed until you decide otherwise.
+          The forum reads in full by default. Turn on the spoiler shield, say how far you have played, and every body
+          past that point waits. Titles always stay visible.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
@@ -58,9 +59,9 @@ export default async function LandingPage() {
       </section>
 
       <section className="mt-20 md:mt-28">
-        <h2 className="font-display text-2xl font-semibold text-text-primary">See it work</h2>
+        <h2 className="font-display text-2xl font-semibold text-text-primary">The shield, off and on</h2>
         <p className="mt-2 max-w-xl text-sm text-text-secondary">
-          Nothing here touches your account. Move the slider and watch the cards seal and open.
+          The same post both ways. The pill in the header is the only switch, and it never touches your chapter.
         </p>
         <div className="mt-6">
           <SpoilerDemo />

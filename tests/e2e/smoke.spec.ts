@@ -9,27 +9,18 @@ import { expect, test } from "@playwright/test";
 test.describe("landing", () => {
   test("renders the hero and the spoiler demo", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("without getting spoiled");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("Seal the parts you have not reached");
     await expect(page.getByRole("link", { name: "Create an account" })).toBeVisible();
   });
 
-  test("the slider hides and reveals the sample cards", async ({ page }) => {
+  test("shows the demo post sealed and open at once", async ({ page }) => {
     await page.goto("/");
 
-    // Every title is readable at level 0. Only the bodies seal and open.
-    await expect(page.getByRole("heading", { name: /How big is Leonida/ })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /second act job/ })).toBeVisible();
-    await expect(page.getByText("Body hidden until Chapter 2")).toBeVisible();
-    await expect(page.getByText(/mid game answer/)).toHaveCount(0);
-
-    const slider = page.getByRole("slider", { name: /Drag to set/ });
-    await slider.fill("7");
-
+    // The same post in both panels: title twice, body once, placeholder once.
+    await expect(page.getByRole("heading", { name: /fourth act job/ })).toHaveCount(2);
     await expect(page.getByText(/mid game answer/)).toBeVisible();
-    await expect(page.getByText(/Body hidden until/)).toHaveCount(0);
-
-    await slider.fill("0");
-    await expect(page.getByText("Body hidden until Chapter 2")).toBeVisible();
+    await expect(page.getByText("Body hidden until Chapter 4")).toBeVisible();
+    await expect(page.getByText("Shield off")).toBeVisible();
   });
 
   test("does not scroll horizontally", async ({ page }) => {

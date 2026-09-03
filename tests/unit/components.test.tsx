@@ -247,24 +247,22 @@ describe("SpoilerLevelControl", () => {
 });
 
 describe("SpoilerDemo", () => {
-  it("keeps every title on screen and only seals the bodies", () => {
+  it("shows the same post with the shield off and with it on", () => {
     render(<SpoilerDemo />);
 
-    // All three titles are readable at level 0, which is the point of the change.
-    expect(screen.getByRole("heading", { name: /How big is Leonida/ })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /second act job/ })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /changed my read on the ending/ })).toBeInTheDocument();
-
-    expect(screen.getByText(/Trailer two shows swamp/)).toBeInTheDocument();
-    expect(screen.queryByText(/mid game answer/)).not.toBeInTheDocument();
-    expect(screen.getByText("Body hidden until Chapter 2")).toBeInTheDocument();
-    expect(screen.getByText("Body hidden until Chapter 6")).toBeInTheDocument();
-
-    fireEvent.change(screen.getByRole("slider", { name: /Drag to set/ }), { target: { value: "7" } });
-
+    // One post, two panels. The title is in both; the body is only in the open one.
+    expect(screen.getAllByRole("heading", { name: /fourth act job/ })).toHaveLength(2);
     expect(screen.getByText(/mid game answer/)).toBeInTheDocument();
-    expect(screen.getByText(/late game body/)).toBeInTheDocument();
-    expect(screen.queryByText(/Body hidden until/)).not.toBeInTheDocument();
+    expect(screen.getByText("Body hidden until Chapter 4")).toBeInTheDocument();
+
+    expect(screen.getByText("Shield off")).toBeInTheDocument();
+    expect(screen.getByText("Shield on, Haven't played")).toBeInTheDocument();
+  });
+
+  it("is static, with no control to move", () => {
+    const { container } = render(<SpoilerDemo />);
+    expect(container.querySelector("input")).toBeNull();
+    expect(container.querySelector("button")).toBeNull();
   });
 });
 

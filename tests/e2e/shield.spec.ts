@@ -85,13 +85,11 @@ test.describe("the header pill", () => {
 });
 
 test.describe("the landing demo", () => {
-  test("still shows the gate working, whatever the reader's own shield says", async ({ page }) => {
+  test("shows the gate both ways, whatever the reader's own shield says", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: /second act job/ })).toBeVisible();
-    await expect(page.getByText("Body hidden until Chapter 2")).toBeVisible();
-
-    await page.getByRole("slider", { name: /Drag to set/ }).fill("7");
-    await expect(page.getByText(/Body hidden until/)).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: /fourth act job/ })).toHaveCount(2);
+    await expect(page.getByText(/mid game answer/)).toBeVisible();
+    await expect(page.getByText("Body hidden until Chapter 4")).toBeVisible();
   });
 });
