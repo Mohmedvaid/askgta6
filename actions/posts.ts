@@ -6,6 +6,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/viewer";
 import { firstIssue, postEditSchema, postInputSchema, type ActionResult } from "@/lib/validation";
 import { honeypotTripped } from "@/lib/honeypot";
+import { TURNSTILE_FIELD, verifyTurnstile } from "@/lib/turnstile";
 
 function readForm(formData: FormData) {
   return {
@@ -30,6 +31,9 @@ export async function createPost(_state: ActionResult | null, formData: FormData
 
   // Nothing is written and nothing is explained. A person never sees this.
   if (honeypotTripped(formData)) return { ok: false, error: "That post could not be saved." };
+
+  const human = await verifyTurnstile(String(formData.get(TURNSTILE_FIELD) ?? "") || null);
+  if (!human.ok) return { ok: false, error: "That did not look like a person. Reload the page and try again." };
 
   const parsed = postInputSchema.safeParse(readForm(formData));
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };

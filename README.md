@@ -124,4 +124,10 @@ Signing out is one server action, reachable from the account menu in the header 
 
 ## Moderation
 
-Five distinct reporters hide a post or a reply automatically. Users listed in `ADMIN_USER_IDS` can open `/admin/reports` to hide, unhide, or delete. That is the whole system. There is no roles table.
+Five distinct reporters hide a post or a reply automatically.
+
+Admin is `profiles.is_admin`, a column rather than an environment variable, so row level security can see it. `/admin` has an overview, the report queue, user search, and recent content. Actions are hide, unhide, delete, dismiss the reports, ban, unban, and delete an account, each gated server side and each writing a row to `admin_actions`, a table that takes no client writes.
+
+Banning is enforced in Postgres. `public.is_banned()` is inside the insert policies for posts, replies, groups, and reports and inside `cast_vote`, so a banned account is refused whatever it sends. It can still read.
+
+There is still no roles table. There is one boolean.

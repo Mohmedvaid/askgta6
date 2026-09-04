@@ -13,6 +13,7 @@ describe("migrations", () => {
       `select tablename, rowsecurity from pg_tables where schemaname = 'public' order by tablename`,
     );
     expect(result.rows.map((r) => r.tablename)).toEqual([
+      "admin_actions",
       "group_invites",
       "group_members",
       "groups",
@@ -20,6 +21,7 @@ describe("migrations", () => {
       "profiles",
       "replies",
       "reports",
+      "signup_attempts",
       "votes",
     ]);
     expect(result.rows.every((r) => r.rowsecurity)).toBe(true);

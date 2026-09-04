@@ -41,6 +41,12 @@ class FakeBuilder implements PromiseLike<Result> {
   is(...args: unknown[]) {
     return this.record("is", args);
   }
+  in(...args: unknown[]) {
+    return this.record("in", args);
+  }
+  ilike(...args: unknown[]) {
+    return this.record("ilike", args);
+  }
   gte(...args: unknown[]) {
     return this.record("gte", args);
   }
@@ -75,6 +81,8 @@ export type FakeClientOptions = {
   tables?: Record<string, Result>;
   rpc?: Record<string, Result>;
   storage?: { publicUrl?: string; uploadError?: boolean };
+  /** The admin auth surface, used only by the account deletion path. */
+  authAdmin?: { deleteError?: boolean; users?: { id: string; email: string | null }[] };
 };
 
 export function createFakeClient(options: FakeClientOptions = {}) {
@@ -90,6 +98,18 @@ export function createFakeClient(options: FakeClientOptions = {}) {
     rpc(name: string, args: unknown) {
       calls.push({ method: "rpc", args: [name, args] });
       return new FakeBuilder(options.rpc?.[name] ?? empty, calls);
+    },
+    auth: {
+      admin: {
+        deleteUser: async (id: string) => {
+          calls.push({ method: "deleteUser", args: [id] });
+          return { data: null, error: options.authAdmin?.deleteError ? { message: "delete failed" } : null };
+        },
+        listUsers: async () => {
+          calls.push({ method: "listUsers", args: [] });
+          return { data: { users: options.authAdmin?.users ?? [] }, error: null };
+        },
+      },
     },
     storage: {
       from() {

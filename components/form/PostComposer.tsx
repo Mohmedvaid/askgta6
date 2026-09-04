@@ -5,6 +5,7 @@ import { SpoilerLevelControl } from "../SpoilerLevelControl";
 import { SubmitButton } from "./SubmitButton";
 import { FieldError } from "./FieldError";
 import { Honeypot } from "./Honeypot";
+import { Turnstile } from "./Turnstile";
 import { TOPICS, TOPIC_LABELS } from "@/lib/topics";
 import type { ActionResult } from "@/lib/validation";
 import { track } from "@/lib/analytics";
@@ -143,6 +144,8 @@ export function PostComposer({ action, defaults, submitLabel }: PostComposerProp
         label="Spoiler level"
         hint="Not sure? Tag it higher. Hiding a safe post is harmless. Spoiling someone is not."
       />
+
+      <Turnstile />
 
       <FieldError message={state && !state.ok ? state.error : null} />
       <SubmitButton label={submitLabel} pendingLabel="Saving" />

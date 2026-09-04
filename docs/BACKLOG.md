@@ -6,10 +6,6 @@ GTA VI releases **November 19, 2026**. Digital pre-load is **November 12**, and 
 
 Roughly in the order they unblock each other.
 
-### Set ADMIN_USER_IDS
-
-Sign up on production, copy the uuid from **Authentication, Users**, set `ADMIN_USER_IDS` in Vercel to it, redeploy. Until then `/admin/reports` 404s for everyone and nobody can act on the report queue.
-
 ### Rotate every secret placed in a Claude Code cloud environment
 
 Treat them as exposed: the Supabase publishable key, the secret key, and the database password. Follow the rotation order in [system/runbook.md](system/runbook.md). Separately, **revoke the claude-cloud Supabase access token** under **Account, Access Tokens**. Do this before the site is public, not after.
@@ -66,68 +62,13 @@ Do this before pre-load day, not before launch day. Traffic starts climbing on N
 
 It is `false` today, which is right pre-launch when almost nothing is a spoiler. The week the game is out, that inverts: the feed fills with real story content and a reader arriving with the shield off gets spoiled by the thing built to prevent it. Decide whether to flip the default in `lib/spoilers.ts` for launch week, and whether to flip it back later. One line, but it changes what a first time visitor sees.
 
-### Per IP signup rate limit, proposed migration `0012`
-
-**Skipped deliberately, because it needs a table.** The posting and reply limits in
-migration `0003` count rows a signed in person already owns. A signup has no such
-row and no owner, so the only Postgres backed way to count attempts per IP is a
-table of its own, and the night that produced this entry was under a no new
-migrations rule. Supabase Auth applies its own per IP limits on the hosted side in
-the meantime, and the signup and magic link forms both carry a honeypot field.
-
-Apply this as `supabase/migrations/0012_signup_attempts.sql`, then call
-`public.record_signup_attempt` from the signup action with the forwarded client IP
-and refuse when it returns false. It is `security definer` because the caller is
-anonymous, and it holds nothing but a hash: an IP address is personal data and
-there is no reason to keep the original.
-
-```sql
-create table if not exists public.signup_attempts (
-  ip_hash text not null,
-  attempted_at timestamptz not null default now()
-);
-
-create index if not exists signup_attempts_ip_time_idx
-  on public.signup_attempts (ip_hash, attempted_at desc);
-
-alter table public.signup_attempts enable row level security;
--- No policies. Nothing but the function below, which runs as its owner, may read it.
-
-create or replace function public.record_signup_attempt(p_ip_hash text)
-returns boolean
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  recent integer;
-begin
-  delete from public.signup_attempts where attempted_at < now() - interval '1 day';
-
-  select count(*) into recent
-  from public.signup_attempts
-  where ip_hash = p_ip_hash and attempted_at > now() - interval '1 hour';
-
-  if recent >= 5 then
-    return false;
-  end if;
-
-  insert into public.signup_attempts (ip_hash) values (p_ip_hash);
-  return true;
-end;
-$$;
-
-revoke all on function public.record_signup_attempt(text) from public;
-grant execute on function public.record_signup_attempt(text) to anon, authenticated;
-```
-
-Five per IP per hour is a guess tuned for a quiet forum. Shared NAT and university
-networks make a per IP limit blunt, so watch the Supabase auth log for refusals
-that look like real people before tightening it.
-
 ### Moderation plan for launch week
 
-Auto hide at five distinct reporters is the only automatic defence, and there is no notification when it fires. Decide who checks `/admin/reports`, how often, and what happens at 2am. Leaks will arrive faster than reports around launch.
+There is a dashboard now, and still no notification when auto hide fires. Decide who checks `/admin`, how often, and what happens at 2am. Leaks will arrive faster than reports around launch.
+
+### Turn Turnstile on
+
+Register the site at Cloudflare, put the site key in `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and the secret in `TURNSTILE_SECRET_KEY` in Vercel, set `NEXT_PUBLIC_TURNSTILE_ENABLED=true`, and **redeploy**, since the first two are build time. The code path is complete and off; nothing renders and nothing is verified until the flag is on.
 
 ### Confirm the analytics events fire in production
 
@@ -150,6 +91,10 @@ Parked deliberately. Nothing here blocks launch.
 ## Recently done
 
 Kept here briefly so a reader does not re-open a decision that has already been made.
+
+### Admin, moderation, and bot defenses, September 2026
+
+Migration `0012`. Admin moved from `ADMIN_USER_IDS` onto `profiles.is_admin`, bans became `banned_at` enforced by row level security rather than by the UI, `admin_actions` records every moderator action, and the per IP signup limit proposed here was built as `public.record_signup_attempt`. Cloudflare Turnstile is wired into signup, sign in, and both composers, switched off pending keys.
 
 ### Go live, September 3, 2026
 

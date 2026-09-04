@@ -363,16 +363,24 @@ describe("navigation", () => {
       created_at: "2026-01-01T00:00:00.000Z",
     };
 
-    const { rerender } = render(<NavRail groups={[group]} signedIn />);
+    const { rerender } = render(<NavRail groups={[group]} signedIn isAdmin={false} />);
     const rail = screen.getByRole("navigation", { name: "Primary" });
     expect(within(rail).getByRole("link", { name: "Vice City locals" })).toBeInTheDocument();
 
-    rerender(<NavRail groups={[]} signedIn={false} />);
+    rerender(<NavRail groups={[]} signedIn={false} isAdmin={false} />);
     expect(screen.queryByText("Your groups")).not.toBeInTheDocument();
   });
 
+  it("shows the admin link only to an admin", () => {
+    const { rerender } = render(<NavRail groups={[]} signedIn isAdmin={false} />);
+    expect(screen.queryByRole("link", { name: "Admin" })).toBeNull();
+
+    rerender(<NavRail groups={[]} signedIn isAdmin />);
+    expect(screen.getByRole("link", { name: "Admin" })).toHaveAttribute("href", "/admin");
+  });
+
   it("says so when a signed in person has no groups", () => {
-    render(<NavRail groups={[]} signedIn />);
+    render(<NavRail groups={[]} signedIn isAdmin={false} />);
     expect(screen.getByText("None yet.")).toBeInTheDocument();
   });
 
@@ -383,14 +391,14 @@ describe("navigation", () => {
 
   it("renders the shell with and without a context column", () => {
     const { rerender } = render(
-      <AppShell groups={[]} username={null} avatarUrl={null} shield={{ enabled: false, progress: 0 }} context={<p>Context here</p>}>
+      <AppShell groups={[]} isAdmin={false} username={null} avatarUrl={null} shield={{ enabled: false, progress: 0 }} context={<p>Context here</p>}>
         <p>Main content</p>
       </AppShell>,
     );
     expect(screen.getByRole("complementary", { name: "Context" })).toHaveTextContent("Context here");
 
     rerender(
-      <AppShell groups={[]} username={null} avatarUrl={null} shield={{ enabled: false, progress: 0 }}>
+      <AppShell groups={[]} isAdmin={false} username={null} avatarUrl={null} shield={{ enabled: false, progress: 0 }}>
         <p>Main content</p>
       </AppShell>,
     );

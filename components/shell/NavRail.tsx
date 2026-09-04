@@ -5,6 +5,7 @@ import type { GroupRow } from "@/lib/queries/groups";
 type NavRailProps = {
   groups: GroupRow[];
   signedIn: boolean;
+  isAdmin: boolean;
 };
 
 const PRIMARY = [
@@ -13,7 +14,7 @@ const PRIMARY = [
   { href: "/new", label: "New post" },
 ];
 
-export function NavRail({ groups, signedIn }: NavRailProps) {
+export function NavRail({ groups, signedIn, isAdmin }: NavRailProps) {
   return (
     <nav
       aria-label="Primary"
@@ -25,7 +26,7 @@ export function NavRail({ groups, signedIn }: NavRailProps) {
       </Link>
 
       <ul className="flex flex-col gap-1">
-        {PRIMARY.map((item) => (
+        {(isAdmin ? [...PRIMARY, { href: "/admin", label: "Admin" }] : PRIMARY).map((item) => (
           <li key={item.href}>
             <Link
               href={item.href}

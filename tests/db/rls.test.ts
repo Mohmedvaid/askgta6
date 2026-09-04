@@ -192,14 +192,24 @@ describe("row level security", () => {
     expect(await visibleIds(f.alice)).toContain(openPost);
   });
 
-  it("keeps reports write only for regular users", async () => {
+  it("keeps reports write only for regular users, and readable for an admin", async () => {
     await asUser(db, f.bob, async () => {
       await db.query(
         `insert into public.reports (reporter_id, target_type, target_id, reason) values ($1, 'post', $2, 'spam')`,
         [f.bob, openPost],
       );
-      await expect(db.query(`select * from public.reports`)).rejects.toThrow(/permission denied/);
+      // The grant exists so admins can read the queue. A regular reader gets no
+      // rows rather than an error, including the report they just filed.
+      const own = await db.query(`select * from public.reports`);
+      expect(own.rows).toHaveLength(0);
     });
+
+    await db.query(`update public.profiles set is_admin = true where id = $1`, [f.alice]);
+    await asUser(db, f.alice, async () => {
+      const queue = await db.query(`select * from public.reports`);
+      expect(queue.rows).toHaveLength(1);
+    });
+    await db.query(`update public.profiles set is_admin = false where id = $1`, [f.alice]);
   });
 
   it("hides replies that belong to an invisible post", async () => {

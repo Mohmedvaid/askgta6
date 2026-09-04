@@ -138,7 +138,10 @@ Noindex is the root layout default and indexable pages opt in, because forgettin
 - Anyone signed in can report a post or reply. Reasons: `spam`, `leak`, `harassment`, `wrong_spoiler_level`, `spoiler_in_title`, `other`. One report per person per item, enforced by a unique constraint.
 - A database trigger sets `is_hidden = true` on the target once **five distinct reporters** have filed. Four does not fire it, and five attempts from one person cannot, because of the unique constraint.
 - Hidden content is visible only to its author, by row level security.
-- Users whose uuid is in `ADMIN_USER_IDS` can open `/admin/reports` to hide, unhide, or delete. The check runs server side on every call, and the hide path goes through a `security definer` function whose execute permission is revoked from `public`.
+- **Admin is `profiles.is_admin`**, a column rather than an environment variable, because row level security can read a column and cannot read a Vercel variable. `public.is_admin()` is what the policies call.
+- `/admin` is gated once in its layout and again in every action, because a server action is its own entry point. It has four screens: an overview of signups, posts, and replies per day for 30 days plus totals, the report queue, user search, and recent posts and groups.
+- **Every admin action writes a row to `admin_actions`**, with the service role key, because that table takes no client writes at all: an audit trail a moderator can forge is not an audit trail.
+- **Banning is enforced by Postgres, not the UI.** `public.is_banned()` sits inside the insert policies for posts, replies, groups, and reports, and inside `cast_vote`, which is `security definer` and so bypasses policies. A banned account can still read.
 - That is the entire moderation system. There is no roles table.
 
 ## Rate limits
@@ -152,7 +155,11 @@ Exceeding either raises, and the server action maps it to "You are posting too q
 
 These numbers are tuned for a quiet forum. Review them before a launch spike; that is on the backlog.
 
-Signup and both composers carry a honeypot: a field named `website`, moved off screen rather than hidden so a form filler still fills it, out of the tab order and out of the accessibility tree so a person never meets it. A tripped signup gets the answer a real one gets and nothing happens. A tripped post or reply gets a generic failure and writes nothing. There is no per IP signup limit yet; the proposed migration for one is written out in [../BACKLOG.md](../BACKLOG.md).
+**Cloudflare Turnstile** is on signup, sign in, and both composers behind `NEXT_PUBLIC_TURNSTILE_ENABLED`. Off, the widget renders nothing and the server skips verification. On, a missing or failing token is a refusal, except when Cloudflare itself is unreachable, where it fails open so an outage there is not an outage here. Enabled without a secret fails closed, because failing open would make the flag a lie.
+
+**A per IP signup limit**, five an hour, counted by `public.record_signup_attempt` in Postgres. The table holds a salted hash and a timestamp, never an address, and has no row level security policies at all, so only that `security definer` function can reach it.
+
+Signup and both composers carry a honeypot: a field named `website`, moved off screen rather than hidden so a form filler still fills it, out of the tab order and out of the accessibility tree so a person never meets it. A tripped signup gets the answer a real one gets and nothing happens. A tripped post or reply gets a generic failure and writes nothing. 
 
 ## Storage
 

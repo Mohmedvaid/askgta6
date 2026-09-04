@@ -5,6 +5,7 @@ import { useActionState } from "react";
 import { SubmitButton } from "./SubmitButton";
 import { FieldError } from "./FieldError";
 import { Honeypot } from "./Honeypot";
+import { Turnstile } from "./Turnstile";
 import { signIn, signInWithProvider, signUp } from "@/app/auth/actions";
 
 const inputClass =
@@ -74,6 +75,8 @@ export function AuthForm({ mode, next, discordEnabled, googleEnabled }: AuthForm
             className={`mt-2 ${inputClass}`}
           />
         </div>
+
+        <Turnstile />
 
         <FieldError message={state && !state.ok ? state.error : null} />
         {state?.ok && !signingIn ? (

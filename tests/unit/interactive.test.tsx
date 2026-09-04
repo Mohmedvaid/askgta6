@@ -13,7 +13,7 @@ vi.mock("@/actions/reveal", () => ({ revealContent }));
 vi.mock("@/actions/votes", () => ({ castVote }));
 vi.mock("@/actions/reports", () => ({ submitReport }));
 vi.mock("@/actions/replies", () => ({ createReply }));
-vi.mock("@/actions/moderation", () => ({ moderate }));
+vi.mock("@/actions/admin", () => ({ moderate, setBanned: vi.fn(), deleteAccount: vi.fn() }));
 vi.mock("@/lib/analytics", () => ({ track }));
 
 const { RevealRegion } = await import("@/components/post/RevealRegion");

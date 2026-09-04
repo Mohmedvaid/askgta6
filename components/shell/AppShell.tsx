@@ -8,6 +8,7 @@ type AppShellProps = {
   children: ReactNode;
   context?: ReactNode;
   groups: GroupRow[];
+  isAdmin: boolean;
   username: string | null;
   avatarUrl: string | null;
   shield: { enabled: boolean; progress: number };
@@ -17,10 +18,10 @@ type AppShellProps = {
  * Three regions on desktop: rail, content, context.
  * The context column drops under the content on tablet, the rail becomes a bottom bar on mobile.
  */
-export function AppShell({ children, context, groups, username, avatarUrl, shield }: AppShellProps) {
+export function AppShell({ children, context, groups, username, avatarUrl, shield, isAdmin }: AppShellProps) {
   return (
     <div className="flex min-h-dvh">
-      <NavRail groups={groups} signedIn={Boolean(username)} />
+      <NavRail groups={groups} signedIn={Boolean(username)} isAdmin={isAdmin} />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <HeaderBar

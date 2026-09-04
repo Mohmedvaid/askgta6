@@ -11,6 +11,8 @@ export type Viewer = {
   progress: SpoilerLevel;
   shieldEnabled: boolean;
   theme: "dark" | "light";
+  isAdmin: boolean;
+  bannedAt: string | null;
 };
 
 /** The signed in person, or null. Cached per request so a page can ask more than once. */
@@ -21,7 +23,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_path, progress, spoiler_shield, theme")
+    .select("id, username, display_name, avatar_path, progress, spoiler_shield, theme, is_admin, banned_at")
     .eq("id", auth.user.id)
     .single();
 
@@ -35,6 +37,10 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     progress: clampProgress(profile.progress),
     shieldEnabled: profile.spoiler_shield === true,
     theme: profile.theme === "light" ? "light" : "dark",
+    // Admin and ban both live on the row so row level security can read them.
+    // What is here is for rendering; the database enforces both independently.
+    isAdmin: profile.is_admin === true,
+    bannedAt: profile.banned_at ?? null,
   };
 });
 

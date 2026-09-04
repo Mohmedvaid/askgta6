@@ -92,6 +92,21 @@ The www entry is there even though www redirects to the apex, because a link cli
 
 This list is the real gate on where an auth link may point. When Supabase receives a `redirect_to` that is not on it, it does not error: it silently substitutes the Site URL, which is a bare origin with no path. That failure mode and how to spot it are in [runbook.md](runbook.md).
 
+### Admin
+
+**`profiles.is_admin`, a column, not an environment variable.** Migration `0012`
+added it, along with `banned_at` and `banned_reason`.
+
+The reason it is a column is row level security: a policy can read a column and
+cannot read a Vercel variable, so an env var could only ever gate the UI while the
+database stayed open to anyone holding a session. `public.is_admin()` and
+`public.is_banned()` read those columns, and the ban check sits inside the insert
+policies for posts, replies, groups, and reports and inside `cast_vote`.
+
+Mohmed's account is set admin by the last statement in migration `0012`, which is
+idempotent and a no op on a project where that address has not signed up. To make
+someone else an admin, see [runbook.md](runbook.md).
+
 ### Personal access tokens
 
 Separate from the project API keys above, and easy to confuse with them.
@@ -118,12 +133,14 @@ Anything named `NEXT_PUBLIC_*` is **inlined into the bundle at build time**, not
 | --- | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | config | build time | The project URL, `https://hxljpyqwhdhxkcasmgut.supabase.co`. Also used by `next.config.ts` to build the Content Security Policy. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | secret, but safe to expose | build time | The Supabase publishable key. Every browser and server read goes through it, under row level security. |
-| `SUPABASE_SERVICE_ROLE_KEY` | secret | runtime, server only | The Supabase secret key. Bypasses row level security. Used by exactly two things: the seed script, and the admin moderation actions after they re-check `ADMIN_USER_IDS`. Never reaches the browser. |
+| `SUPABASE_SERVICE_ROLE_KEY` | secret | runtime, server only | The Supabase secret key. Bypasses row level security. Used by the seed script, the admin dashboard reads, and the admin actions, all of which call `requireAdmin()` first. Also the salt for the signup IP hash. Never reaches the browser. |
 | `NEXT_PUBLIC_SITE_URL` | config | build time | `https://askgta6.com`, the apex, no trailing slash. The canonical origin for the sitemap, RSS, and Open Graph. Auth redirects prefer the live request origin over this and only fall back to it, so a stale value here no longer breaks magic links, but it still has to match the Supabase redirect allow list. |
 | `NEXT_PUBLIC_AUTH_DISCORD_ENABLED` | config | build time | `true` renders the Discord sign in button. Set it only after the provider is configured in Supabase. |
 | `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED` | config | build time | `true` renders the Google sign in button. Same rule. |
 | `NEXT_PUBLIC_INDEXING` | config | build time | `off` in production today. `off` disallows every crawler and sends noindex everywhere. `on` opens the landing page, feed, public groups, public profiles, and public posts. |
-| `ADMIN_USER_IDS` | config | runtime, server only | Comma separated auth user uuids allowed to open `/admin/reports`. Empty today, so that page 404s for everyone. |
+| `NEXT_PUBLIC_TURNSTILE_ENABLED` | config | build time | `true` renders the Cloudflare Turnstile widget on signup, sign in, and both composers, and makes the server verify every token. Anything else is off, so a missing key is a no op rather than a site nobody can join. |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | config | build time | The Turnstile site key. Safe to expose, it is rendered into the widget. |
+| `TURNSTILE_SECRET_KEY` | secret | runtime, server only | The Turnstile secret. Verifies a token against Cloudflare. If the flag is on and this is missing, verification fails closed and says so in the log. |
 
 `.env.example` in the repository root carries the same list with a one line comment each.
 

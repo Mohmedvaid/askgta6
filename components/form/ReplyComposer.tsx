@@ -5,6 +5,7 @@ import { SpoilerLevelControl } from "../SpoilerLevelControl";
 import { SubmitButton } from "./SubmitButton";
 import { FieldError } from "./FieldError";
 import { Honeypot } from "./Honeypot";
+import { Turnstile } from "./Turnstile";
 import { createReply } from "@/actions/replies";
 
 type ReplyComposerProps = {
@@ -52,6 +53,8 @@ export function ReplyComposer({ postId, defaultSpoilerLevel }: ReplyComposerProp
         label="Spoiler level for this reply"
         hint="Replies are gated on their own level, so a level 3 answer stays hidden on a level 0 question."
       />
+
+      <Turnstile />
 
       <FieldError message={state && !state.ok ? state.error : null} />
       <SubmitButton label="Post reply" pendingLabel="Posting" />

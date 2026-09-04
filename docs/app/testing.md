@@ -36,6 +36,12 @@ The shim creates the small part of a Supabase project the migrations depend on a
 
 Because a new migration has to apply cleanly on top of all the others for this suite to pass, **a broken migration fails here before it reaches the project.** What this suite does not prove is that a migration has been applied to production; that is a separate step in the [runbook](../system/runbook.md).
 
+`tests/db/admin.test.ts` is the file that matters most now: it proves a banned
+account is refused by Postgres on posts, replies, votes, groups, reports, and edits,
+that nobody can grant themselves `is_admin` or lift their own ban, and that the
+audit table takes no client writes. Those are the guarantees the admin dashboard
+depends on, and none of them is testable from the UI.
+
 What it asserts, among other things: private group posts are invisible to non members through select, through ranked search, and through counts; clients cannot write `vote_count`, `reply_count`, `is_hidden`, or `accepted_reply_id`; report auto hide fires at exactly five distinct reporters and not at four; the rate limits hold; a reader can turn their own spoiler shield on and gets zero rows touching anyone else's.
 
 ## End to end

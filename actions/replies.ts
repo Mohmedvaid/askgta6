@@ -5,12 +5,16 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/viewer";
 import { firstIssue, replyInputSchema, type ActionResult } from "@/lib/validation";
 import { honeypotTripped } from "@/lib/honeypot";
+import { TURNSTILE_FIELD, verifyTurnstile } from "@/lib/turnstile";
 
 export async function createReply(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const viewer = await getViewer();
   if (!viewer) return { ok: false, error: "Sign in to reply." };
 
   if (honeypotTripped(formData)) return { ok: false, error: "That reply could not be saved." };
+
+  const human = await verifyTurnstile(String(formData.get(TURNSTILE_FIELD) ?? "") || null);
+  if (!human.ok) return { ok: false, error: "That did not look like a person. Reload the page and try again." };
 
   const parsed = replyInputSchema.safeParse({
     postId: String(formData.get("postId") ?? ""),

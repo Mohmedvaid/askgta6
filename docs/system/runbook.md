@@ -67,6 +67,35 @@ Every account gets a **fresh random password per run**. They are printed once to
 
 Seed content is drawn only from Trailer 1, Trailer 2, and the store listings. It fabricates no story details.
 
+## Make someone an admin
+
+Admin is `profiles.is_admin`, a column. There is no environment variable and no
+dashboard control for it, on purpose: granting admin is rare and should leave a
+trace in SQL rather than in a form nobody remembers using.
+
+Migration `0012` sets it for `mohmedvaid@gmail.com` and is idempotent, so a fresh
+project or a re-run does the right thing. For anyone else, run this in the Supabase
+SQL editor and record who and when in a commit message:
+
+```sql
+update public.profiles
+set is_admin = true
+where id in (select id from auth.users where lower(email) = lower('<their email>'));
+```
+
+To take it away, the same with `false`. An admin cannot be banned or deleted from
+the dashboard until the flag comes off, which is deliberate: the alternative is one
+compromised admin session removing everyone else.
+
+Confirm it landed:
+
+```sql
+select p.username, p.is_admin, p.banned_at
+from public.profiles p
+join auth.users u on u.id = p.id
+where p.is_admin;
+```
+
 ## Rotate every secret
 
 Do these in order. Each one takes effect somewhere different.

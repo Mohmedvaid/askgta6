@@ -9,6 +9,8 @@ import { adoptAnonymousShield } from "@/lib/adopt-progress";
 import { MAGIC_LINK_DISABLED, logAuthError, reportAuthError } from "@/lib/auth-errors";
 import { authCallbackUrl } from "@/lib/auth-callback";
 import { honeypotTripped } from "@/lib/honeypot";
+import { TURNSTILE_FIELD, verifyTurnstile } from "@/lib/turnstile";
+import { clientIp, hashIp } from "@/lib/client-ip";
 import { PASSWORD_RESET_PATH, clearRecoveryMarker } from "@/lib/recovery";
 import { MAGIC_LINK_ENABLED, PASSWORD_RESET_ENABLED } from "@/lib/auth-features";
 
@@ -27,7 +29,17 @@ const newPassword = z
     path: ["confirm"],
   });
 
+/** The one place a form's Turnstile token is read and checked. */
+async function humanCheck(formData: FormData): Promise<ActionResult | null> {
+  const ip = await clientIp();
+  const result = await verifyTurnstile(String(formData.get(TURNSTILE_FIELD) ?? "") || null, ip);
+  return result.ok ? null : { ok: false, error: "That did not look like a person. Reload the page and try again." };
+}
+
 export async function signIn(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const blocked = await humanCheck(formData);
+  if (blocked) return blocked;
+
   const parsed = credentials.safeParse({
     email: String(formData.get("email") ?? ""),
     password: String(formData.get("password") ?? ""),
@@ -45,11 +57,30 @@ export async function signUp(_state: ActionResult | null, formData: FormData): P
   // The same answer a real signup gets, so a bot cannot tell it was caught.
   if (honeypotTripped(formData)) return { ok: true, data: undefined };
 
+  const blocked = await humanCheck(formData);
+  if (blocked) return blocked;
+
   const parsed = credentials.safeParse({
     email: String(formData.get("email") ?? ""),
     password: String(formData.get("password") ?? ""),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]!.message };
+
+  // Per IP limit, five an hour, counted in Postgres by migration 0012. The address
+  // is hashed before it leaves this process and the table holds nothing else.
+  const ip = await clientIp();
+  if (ip) {
+    const limiter = await createSupabaseServerClient();
+    const { data: allowed, error: limitError } = await limiter.rpc("record_signup_attempt", {
+      p_ip_hash: hashIp(ip),
+    });
+
+    if (limitError) {
+      logAuthError("recordSignupAttempt", limitError);
+    } else if (allowed === false) {
+      return { ok: false, error: "Too many accounts from this connection. Try again in an hour." };
+    }
+  }
 
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signUp({

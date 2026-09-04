@@ -14,6 +14,10 @@ function record(method: string) {
 
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => ({
+    rpc: async (name: string, args: unknown) => {
+      calls.push({ method: `rpc:${name}`, args: [args] });
+      return { data: ip.allowed, error: null };
+    },
     auth: {
       signInWithPassword: record("signInWithPassword"),
       signUp: record("signUp"),
@@ -27,6 +31,20 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 
 vi.mock("@/lib/adopt-progress", () => ({ adoptAnonymousShield: async () => null }));
+
+const turnstile = { ok: true as boolean };
+
+vi.mock("@/lib/turnstile", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/turnstile")>()),
+  verifyTurnstile: async () => (turnstile.ok ? { ok: true } : { ok: false, reason: "rejected" }),
+}));
+
+const ip = { current: "203.0.113.7" as string | null, allowed: true as boolean | null };
+
+vi.mock("@/lib/client-ip", () => ({
+  clientIp: async () => ip.current,
+  hashIp: (value: string) => `hash:${value}`,
+}));
 
 const viewer: { current: { userId: string } | null } = { current: { userId: "user-1" } };
 
@@ -94,6 +112,9 @@ beforeEach(() => {
   features.MAGIC_LINK_ENABLED = true;
   features.PASSWORD_RESET_ENABLED = true;
   recovery.cleared = 0;
+  turnstile.ok = true;
+  ip.current = "203.0.113.7";
+  ip.allowed = true;
   viewer.current = { userId: "user-1" };
   calls.length = 0;
   for (const key of Object.keys(results)) delete results[key];
@@ -112,7 +133,10 @@ describe("signUp", () => {
     results.signUp = { data: { session: null, user: null }, error: null };
     await signUp(null, form(VALID));
 
-    const options = (calls[0]!.args[0] as { options: { emailRedirectTo: string } }).options;
+    // Find it by name: the per IP limiter runs first, so signUp is no longer the
+    // first call recorded.
+    const call = calls.find((entry) => entry.method === "signUp");
+    const options = (call!.args[0] as { options: { emailRedirectTo: string } }).options;
     expect(options.emailRedirectTo).toBe(await authCallbackUrl());
     expect(options.emailRedirectTo).toMatch(/\/auth\/callback$/);
   });
@@ -371,5 +395,62 @@ describe("updatePassword", () => {
     expect(result).toMatchObject({ ok: false });
     expect(String(logged[0]![0])).toBe("[auth] updatePassword failed");
     expect(recovery.cleared).toBe(0);
+  });
+});
+
+describe("the per IP signup limit", () => {
+  it("counts the attempt against a hash of the address, not the address", async () => {
+    results.signUp = { data: { session: null, user: null }, error: null };
+    await signUp(null, form(VALID));
+
+    // hashIp is stubbed here so the call is legible. What it really produces is
+    // asserted in tests/unit/client-ip.test.ts, against the real implementation.
+    const limit = calls.find((call) => call.method === "rpc:record_signup_attempt");
+    expect(limit?.args[0]).toEqual({ p_ip_hash: "hash:203.0.113.7" });
+  });
+
+  it("refuses the signup once the hour's allowance is gone, before Supabase sees it", async () => {
+    ip.allowed = false;
+
+    expect(await signUp(null, form(VALID))).toEqual({
+      ok: false,
+      error: "Too many accounts from this connection. Try again in an hour.",
+    });
+    expect(calls.map((call) => call.method)).not.toContain("signUp");
+  });
+
+  it("still signs people up when there is no address to count", async () => {
+    ip.current = null;
+    results.signUp = { data: { session: null, user: null }, error: null };
+
+    await signUp(null, form(VALID));
+
+    expect(calls.some((call) => call.method === "rpc:record_signup_attempt")).toBe(false);
+    expect(calls.map((call) => call.method)).toContain("signUp");
+  });
+});
+
+describe("Turnstile on the auth forms", () => {
+  it("stops a signup that fails verification, before Supabase and before the limiter", async () => {
+    turnstile.ok = false;
+
+    expect(await signUp(null, form(VALID))).toEqual({
+      ok: false,
+      error: "That did not look like a person. Reload the page and try again.",
+    });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("stops a sign in that fails verification", async () => {
+    turnstile.ok = false;
+
+    expect(await signIn(null, form(VALID))).toMatchObject({ ok: false });
+    expect(calls).toHaveLength(0);
+  });
+
+  it("lets both through when verification passes, which is also the disabled case", async () => {
+    results.signUp = { data: { session: null, user: null }, error: null };
+    await signUp(null, form(VALID));
+    expect(calls.map((call) => call.method)).toContain("signUp");
   });
 });

@@ -16,6 +16,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppShell
       groups={groups}
+      isAdmin={viewer?.isAdmin ?? false}
       username={viewer?.username ?? null}
       avatarUrl={url}
       shield={shield}

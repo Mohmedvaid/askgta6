@@ -3,15 +3,22 @@
 import { useActionState } from "react";
 import { SubmitButton } from "./form/SubmitButton";
 import { FieldError } from "./form/FieldError";
-import { moderate } from "@/actions/moderation";
+import { moderate } from "@/actions/admin";
 
-export function ModerationRow({ targetType, targetId }: { targetType: "post" | "reply"; targetId: string }) {
+type ModerationRowProps = {
+  targetType: "post" | "reply";
+  targetId: string;
+  /** The queue offers dismiss as well, because clearing reports is an outcome. */
+  actions?: readonly ("hide" | "unhide" | "delete" | "dismiss")[];
+};
+
+export function ModerationRow({ targetType, targetId, actions = ["hide", "unhide", "delete"] }: ModerationRowProps) {
   const [state, formAction] = useActionState(moderate, null);
 
   return (
     <div className="mt-4 space-y-2">
       <div className="flex flex-wrap gap-2">
-        {(["hide", "unhide", "delete"] as const).map((action) => (
+        {actions.map((action) => (
           <form key={action} action={formAction}>
             <input type="hidden" name="targetType" value={targetType} />
             <input type="hidden" name="targetId" value={targetId} />

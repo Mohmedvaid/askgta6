@@ -4,7 +4,6 @@ import { createFakeClient, type FakeClient } from "./fake-supabase";
 const holder: { client: FakeClient } = { client: createFakeClient() };
 const viewer: { current: unknown } = { current: null };
 const adminHolder: { client: FakeClient } = { client: createFakeClient() };
-const adminIds: { value: string } = { value: "" };
 
 vi.mock("@/lib/supabase/server", () => ({
   createSupabaseServerClient: async () => holder.client,
@@ -17,7 +16,13 @@ vi.mock("@/lib/viewer", () => ({
 
 vi.mock("@/lib/supabase/admin", () => ({
   createSupabaseAdminClient: () => adminHolder.client,
-  isAdmin: (id: string | null | undefined) => Boolean(id) && adminIds.value.split(",").includes(id!),
+}));
+
+// Turnstile is off in these tests, which is the shipped default. Its own file
+// covers the enabled path.
+vi.mock("@/lib/turnstile", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/turnstile")>()),
+  verifyTurnstile: async () => ({ ok: true }),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
@@ -37,7 +42,7 @@ const { HONEYPOT_FIELD } = await import("@/lib/honeypot");
 const { createGroup, redeemInvite } = await import("@/actions/groups");
 const { saveProfile, setSpoilerShield, uploadAvatar } = await import("@/actions/profile");
 const { completeOnboarding } = await import("@/actions/onboarding");
-const { moderate } = await import("@/actions/moderation");
+const { deleteAccount, moderate, setBanned } = await import("@/actions/admin");
 
 const UUID = "8b2f0f7a-1111-4222-8333-444455556666";
 const SIGNED_IN = {
@@ -48,7 +53,12 @@ const SIGNED_IN = {
   progress: 2,
   shieldEnabled: false,
   theme: "dark",
+  isAdmin: false,
+  bannedAt: null,
 };
+
+const ADMIN = { ...SIGNED_IN, isAdmin: true };
+const OTHER_USER = "9c3f0f7a-2222-4333-8444-555566667777";
 
 function form(fields: Record<string, string>): FormData {
   const data = new FormData();
@@ -83,7 +93,6 @@ beforeEach(() => {
   holder.client = createFakeClient();
   adminHolder.client = createFakeClient();
   viewer.current = null;
-  adminIds.value = "";
 });
 
 describe("revealContent", () => {
@@ -460,17 +469,24 @@ describe("onboarding", () => {
 });
 
 describe("moderation", () => {
-  it("refuses everyone who is not in ADMIN_USER_IDS", async () => {
+  it("refuses a signed in reader whose profile does not carry is_admin", async () => {
     viewer.current = SIGNED_IN;
     expect(await moderate(null, form({ targetType: "post", targetId: UUID, action: "hide" }))).toEqual({
       ok: false,
       error: "That action is not available to you.",
     });
+    expect(adminHolder.client.calls).toHaveLength(0);
+  });
+
+  it("refuses a logged out visitor", async () => {
+    viewer.current = null;
+    expect(await moderate(null, form({ targetType: "post", targetId: UUID, action: "hide" }))).toMatchObject({
+      ok: false,
+    });
   });
 
   it("hides through the definer function and deletes through the table", async () => {
-    viewer.current = SIGNED_IN;
-    adminIds.value = "user-1";
+    viewer.current = ADMIN;
 
     expect(await moderate(null, form({ targetType: "post", targetId: UUID, action: "hide" }))).toEqual({
       ok: true,
@@ -486,9 +502,38 @@ describe("moderation", () => {
     expect(adminHolder.client.calls.some((call) => call.method === "delete")).toBe(true);
   });
 
+  it("clears the reports and leaves the content alone when dismissing", async () => {
+    viewer.current = ADMIN;
+    adminHolder.client = createFakeClient();
+
+    expect(await moderate(null, form({ targetType: "post", targetId: UUID, action: "dismiss" }))).toEqual({
+      ok: true,
+      data: undefined,
+    });
+
+    expect(adminHolder.client.calls).toContainEqual({ method: "from", args: ["reports"] });
+    expect(adminHolder.client.calls.some((call) => call.method === "rpc")).toBe(false);
+    expect(adminHolder.client.calls.some((call) => call.method === "from" && call.args[0] === "posts")).toBe(false);
+  });
+
+  it("writes an audit row naming the action and the target", async () => {
+    viewer.current = ADMIN;
+    adminHolder.client = createFakeClient();
+
+    await moderate(null, form({ targetType: "post", targetId: UUID, action: "hide" }));
+
+    expect(adminHolder.client.calls).toContainEqual({ method: "from", args: ["admin_actions"] });
+    const insert = adminHolder.client.calls.find((call) => call.method === "insert");
+    expect(insert?.args[0]).toMatchObject({
+      actor_id: "user-1",
+      action: "hide",
+      target_type: "post",
+      target_id: UUID,
+    });
+  });
+
   it("reports a failure and rejects an unknown action", async () => {
-    viewer.current = SIGNED_IN;
-    adminIds.value = "user-1";
+    viewer.current = ADMIN;
 
     expect(await moderate(null, form({ targetType: "post", targetId: UUID, action: "burn" }))).toMatchObject({
       ok: false,
@@ -505,6 +550,103 @@ describe("moderation", () => {
       ok: false,
       error: "That item could not be deleted.",
     });
+  });
+});
+
+describe("banning", () => {
+  it("refuses a non admin", async () => {
+    viewer.current = SIGNED_IN;
+    expect(await setBanned(null, form({ userId: OTHER_USER, action: "ban" }))).toEqual({
+      ok: false,
+      error: "That action is not available to you.",
+    });
+    expect(adminHolder.client.calls).toHaveLength(0);
+  });
+
+  it("writes the ban columns and an audit row carrying the reason", async () => {
+    viewer.current = ADMIN;
+    adminHolder.client = createFakeClient({ tables: { profiles: { data: { is_admin: false }, error: null } } });
+
+    expect(await setBanned(null, form({ userId: OTHER_USER, action: "ban", reason: "spam" }))).toEqual({
+      ok: true,
+      data: undefined,
+    });
+
+    const update = adminHolder.client.calls.find((call) => call.method === "update");
+    expect(update?.args[0]).toMatchObject({ banned_reason: "spam" });
+    expect((update?.args[0] as { banned_at: string }).banned_at).toBeTruthy();
+
+    const insert = adminHolder.client.calls.find((call) => call.method === "insert");
+    expect(insert?.args[0]).toMatchObject({ action: "ban", target_type: "user", target_id: OTHER_USER });
+    expect((insert?.args[0] as { detail: Record<string, unknown> }).detail).toEqual({ reason: "spam" });
+  });
+
+  it("clears both columns on an unban", async () => {
+    viewer.current = ADMIN;
+    adminHolder.client = createFakeClient({ tables: { profiles: { data: { is_admin: false }, error: null } } });
+
+    await setBanned(null, form({ userId: OTHER_USER, action: "unban" }));
+
+    const update = adminHolder.client.calls.find((call) => call.method === "update");
+    expect(update?.args[0]).toEqual({ banned_at: null, banned_reason: null });
+  });
+
+  it("will not let an admin ban themselves out of the dashboard", async () => {
+    viewer.current = ADMIN;
+    adminHolder.client = createFakeClient();
+
+    expect(await setBanned(null, form({ userId: "user-1", action: "ban" }))).toMatchObject({ ok: false });
+    expect(adminHolder.client.calls).toHaveLength(0);
+  });
+
+  it("refuses to ban another admin before the flag comes off", async () => {
+    viewer.current = ADMIN;
+    adminHolder.client = createFakeClient({ tables: { profiles: { data: { is_admin: true }, error: null } } });
+
+    expect(await setBanned(null, form({ userId: OTHER_USER, action: "ban" }))).toEqual({
+      ok: false,
+      error: "Take the admin flag off that account first.",
+    });
+    expect(adminHolder.client.calls.some((call) => call.method === "update")).toBe(false);
+  });
+});
+
+describe("deleting an account", () => {
+  it("refuses a non admin", async () => {
+    viewer.current = SIGNED_IN;
+    expect(await deleteAccount(null, form({ userId: OTHER_USER, confirm: "someone" }))).toEqual({
+      ok: false,
+      error: "That action is not available to you.",
+    });
+  });
+
+  it("refuses when the typed username does not match", async () => {
+    viewer.current = ADMIN;
+    adminHolder.client = createFakeClient({
+      tables: { profiles: { data: { username: "dex", is_admin: false }, error: null } },
+    });
+
+    expect(await deleteAccount(null, form({ userId: OTHER_USER, confirm: "not-dex" }))).toEqual({
+      ok: false,
+      error: "That username does not match.",
+    });
+  });
+
+  it("writes the audit row before the account is gone", async () => {
+    viewer.current = ADMIN;
+    adminHolder.client = createFakeClient({
+      tables: { profiles: { data: { username: "dex", is_admin: false }, error: null } },
+    });
+
+    expect(await deleteAccount(null, form({ userId: OTHER_USER, confirm: "dex" }))).toEqual({
+      ok: true,
+      data: undefined,
+    });
+
+    const insert = adminHolder.client.calls.find((call) => call.method === "insert");
+    expect(insert?.args[0]).toMatchObject({ action: "delete_account", target_type: "user", target_id: OTHER_USER });
+    // The username is only readable before the row goes, which is why it is captured.
+    expect((insert?.args[0] as { detail: { username: string } }).detail.username).toBe("dex");
   });
 });
 

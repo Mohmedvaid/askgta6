@@ -77,7 +77,19 @@ export const reportSchema = z.object({
 export const moderationSchema = z.object({
   targetType: z.enum(["post", "reply"]),
   targetId: uuid,
-  action: z.enum(["hide", "unhide", "delete"]),
+  action: z.enum(["hide", "unhide", "delete", "dismiss"]),
+});
+
+export const banSchema = z.object({
+  userId: uuid,
+  action: z.enum(["ban", "unban"]),
+  reason: z.string().trim().max(200, "Keep the reason under 200 characters.").optional(),
+});
+
+export const deleteAccountSchema = z.object({
+  userId: uuid,
+  // Typing the username is the confirmation. There is no undo for this one.
+  confirm: z.string().trim().min(1, "Type the username to confirm."),
 });
 
 export const avatarSchema = z.object({
