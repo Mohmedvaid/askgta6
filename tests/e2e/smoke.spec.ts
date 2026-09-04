@@ -62,6 +62,24 @@ test.describe("compose", () => {
   });
 });
 
+test.describe("magic link, disabled", () => {
+  test("the sign in page offers one form and no way to ask for a link", async ({ page }) => {
+    await page.goto("/auth/sign-in");
+
+    await expect(page.getByLabel("Email")).toHaveCount(1);
+    await expect(page.getByLabel("Password")).toBeVisible();
+    await expect(page.getByLabel(/sign in link/i)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Email me a link/i })).toHaveCount(0);
+  });
+
+  test("the sign up page does not offer one either", async ({ page }) => {
+    await page.goto("/auth/sign-up");
+
+    await expect(page.getByRole("button", { name: "Create account" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Email me a link/i })).toHaveCount(0);
+  });
+});
+
 test("404 stays on brand", async ({ page }) => {
   const response = await page.goto("/p/does-not-exist-at-all");
   expect(response?.status()).toBe(404);

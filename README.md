@@ -59,7 +59,7 @@ The only control is the pill in the header: "Spoiler shield: off", or the chapte
 app/
   (marketing)/     landing page, logged out
   (app)/           everything behind the shell: feed, post, compose, groups, profile, settings, admin
-  auth/            sign in, sign up, magic link, OAuth, callback, sign out
+  auth/            sign in, sign up, OAuth, callback, sign out
 components/        one component per file, grouped by concern
 lib/
   spoilers.ts      levels and the gate
@@ -108,7 +108,9 @@ Vercel Analytics, mounted in the root layout. `lib/analytics.ts` declares exactl
 
 ## Auth
 
-Email and password, magic link, and Discord and Google behind their flags.
+Email and password, plus Discord and Google behind their flags.
+
+Magic link sign in is **disabled** as of September 2026, pending confidence in the new SMTP sender. Nothing was deleted: the action is still there and still tested, the form is gone from the sign in page, and `MAGIC_LINK_ENABLED` in `lib/auth-features.ts` is false so a stray post does nothing. Turning it back on means flipping that flag and restoring the form.
 
 Every auth redirect is built by `authCallbackUrl()` in `lib/auth-callback.ts` and nothing else, which a source scanning test enforces. It prefers the origin the request arrived on, from `x-forwarded-host` and `x-forwarded-proto`, over `NEXT_PUBLIC_SITE_URL`, because that variable is baked in at build time and can be stale. It always appends `/auth/callback` and throws in production rather than falling back to localhost.
 

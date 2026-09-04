@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { SubmitButton } from "./SubmitButton";
 import { FieldError } from "./FieldError";
 import { Honeypot } from "./Honeypot";
-import { sendMagicLink, signIn, signInWithProvider, signUp } from "@/app/auth/actions";
+import { signIn, signInWithProvider, signUp } from "@/app/auth/actions";
 
 const inputClass =
   "w-full rounded-md border border-border bg-surface-1 px-3 py-2 text-sm text-text-primary placeholder:text-text-muted";
@@ -17,10 +17,17 @@ type AuthFormProps = {
   googleEnabled: boolean;
 };
 
+/**
+ * Email and password, plus the two OAuth buttons when their flags are on.
+ *
+ * There used to be an "Or get a sign in link" form under this one. It was removed
+ * in September 2026 pending SMTP; the action behind it is still in
+ * app/auth/actions.ts with the whole story, and lib/auth-features.ts holds the flag
+ * that keeps it unreachable. Restoring the form is half of turning it back on.
+ */
 export function AuthForm({ mode, next, discordEnabled, googleEnabled }: AuthFormProps) {
   const signingIn = mode === "sign-in";
   const [state, formAction] = useActionState(signingIn ? signIn : signUp, null);
-  const [linkState, linkAction] = useActionState(sendMagicLink, null);
 
   return (
     <div className="space-y-8">
@@ -30,7 +37,7 @@ export function AuthForm({ mode, next, discordEnabled, googleEnabled }: AuthForm
         </h1>
         <p className="mt-2 text-sm text-text-secondary">
           {signingIn
-            ? "Pick up where you left off, at the spoiler level you set."
+            ? "Email and password. You land back at the spoiler level you set."
             : "Set how far you have played and the site hides everything past it."}
         </p>
       </div>
@@ -66,17 +73,6 @@ export function AuthForm({ mode, next, discordEnabled, googleEnabled }: AuthForm
           <p className="text-sm text-success">Check your inbox to confirm the address.</p>
         ) : null}
         <SubmitButton label={signingIn ? "Sign in" : "Create account"} pendingLabel="Working" />
-      </form>
-
-      <form action={linkAction} className="relative space-y-3 border-t border-border pt-6">
-        <Honeypot />
-        <label htmlFor="magic-email" className="text-sm font-semibold text-text-primary">
-          Or get a sign in link
-        </label>
-        <input id="magic-email" name="email" type="email" required placeholder="you@example.com" className={inputClass} />
-        <FieldError message={linkState && !linkState.ok ? linkState.error : null} />
-        {linkState?.ok ? <p className="text-sm text-success">Link sent. Check your inbox.</p> : null}
-        <SubmitButton label="Email me a link" pendingLabel="Sending" tone="quiet" />
       </form>
 
       {discordEnabled || googleEnabled ? (

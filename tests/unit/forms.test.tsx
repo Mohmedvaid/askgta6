@@ -205,14 +205,22 @@ describe("AuthForm", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("do not match an account");
   });
 
-  it("confirms a sent magic link", async () => {
-    sendMagicLink.mockResolvedValue({ ok: true, data: undefined });
+  it("offers no magic link form while that method is disabled", () => {
+    const { container } = render(<AuthForm mode="sign-in" discordEnabled={false} googleEnabled={false} />);
 
-    render(<AuthForm mode="sign-in" discordEnabled={false} googleEnabled={false} />);
-    await userEvent.type(screen.getByLabelText("Or get a sign in link"), "a@b.co");
-    await userEvent.click(screen.getByRole("button", { name: "Email me a link" }));
+    // One form, one email field, and no way to ask for a link.
+    expect(container.querySelectorAll("form")).toHaveLength(1);
+    expect(screen.getAllByLabelText("Email")).toHaveLength(1);
+    expect(screen.queryByLabelText(/sign in link/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /link/i })).toBeNull();
+    expect(sendMagicLink).not.toHaveBeenCalled();
+  });
 
-    expect(await screen.findByText("Link sent. Check your inbox.")).toBeInTheDocument();
+  it("keeps both OAuth buttons when their flags are on", () => {
+    render(<AuthForm mode="sign-in" discordEnabled googleEnabled />);
+
+    expect(screen.getByRole("button", { name: "Continue with Discord" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
   });
 
   it("confirms a new account that needs email confirmation", async () => {

@@ -5,9 +5,10 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { type ActionResult } from "@/lib/validation";
 import { adoptAnonymousShield } from "@/lib/adopt-progress";
-import { logAuthError, reportAuthError } from "@/lib/auth-errors";
+import { MAGIC_LINK_DISABLED, logAuthError, reportAuthError } from "@/lib/auth-errors";
 import { authCallbackUrl } from "@/lib/auth-callback";
 import { honeypotTripped } from "@/lib/honeypot";
+import { MAGIC_LINK_ENABLED } from "@/lib/auth-features";
 
 const credentials = z.object({
   email: z.string().trim().email("Enter a valid email address."),
@@ -53,7 +54,27 @@ export async function signUp(_state: ActionResult | null, formData: FormData): P
   redirect("/onboarding");
 }
 
+/**
+ * Magic link sign in. **DISABLED September 2026 pending SMTP.**
+ *
+ * The implementation below is intact and deliberately not deleted. What is gone is
+ * the way in: the "Or get a sign in link" form was removed from
+ * components/form/AuthForm.tsx, which is what app/auth/sign-in renders, and
+ * MAGIC_LINK_ENABLED in lib/auth-features.ts is false so a stray post to this
+ * action from a cached page, a bookmarked form, or a script does nothing at all.
+ *
+ * To re-enable, both: flip MAGIC_LINK_ENABLED to true, and restore the form in
+ * app/auth/sign-in. Flipping the flag alone gives nobody a way to reach this, and
+ * restoring the form alone hits the guard below.
+ *
+ * The tests in tests/unit/auth-actions.test.ts mock the flag to true and still
+ * exercise the whole path, so this does not rot while it is switched off.
+ */
 export async function sendMagicLink(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  // Before anything else, including Supabase and the honeypot. Nothing is sent,
+  // nothing is logged, and no rate limit is spent.
+  if (!MAGIC_LINK_ENABLED) return { ok: false, error: MAGIC_LINK_DISABLED };
+
   if (honeypotTripped(formData)) return { ok: true, data: undefined };
 
   const email = z.string().trim().email().safeParse(String(formData.get("email") ?? ""));

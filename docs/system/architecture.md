@@ -18,7 +18,7 @@ No state management library, no ORM, no component library, no form library.
 app/
   (marketing)/     the landing page, logged out
   (app)/           everything behind the shell: feed, post, compose, groups, profile, settings, admin
-  auth/            sign in, sign up, magic link, OAuth, callback
+  auth/            sign in, sign up, OAuth, callback, sign out
   robots.ts        crawler policy, driven by NEXT_PUBLIC_INDEXING
   sitemap.ts       empty while indexing is off
   feed.xml/        RSS for the site, level 0 posts only
@@ -56,11 +56,12 @@ tests/
 
 ## Auth
 
-- Email and password, magic link, and Discord and Google behind their flags.
+- Email and password. Discord and Google behind their flags.
+- **Magic link is disabled**, September 2026, pending confidence in the new SMTP sender. The action in `app/auth/actions.ts` is intact and still covered by tests that mock the flag back on, the form is gone from `components/form/AuthForm.tsx`, and `MAGIC_LINK_ENABLED` in `lib/auth-features.ts` is false so a stray post reaches nothing. Re-enabling is both: flip the flag, restore the form.
 - Sessions live in cookies, written by `@supabase/ssr`. `middleware.ts` refreshes them so a server render never sees a stale session.
 - Every auth redirect is built by `authCallbackUrl()` in `lib/auth-callback.ts` and nothing else. It prefers the origin the request actually arrived on, from `x-forwarded-host` and `x-forwarded-proto`, over `NEXT_PUBLIC_SITE_URL`, because the variable is baked in at build time and can be stale. It always appends `/auth/callback`, ignores a loopback origin outside development, and throws in production rather than mailing a link to localhost. `tests/unit/auth-redirect.test.ts` scans the source and fails if any auth call builds a redirect by hand.
 - **That exact origin still has to be in the Supabase redirect allow list.** When it is not, Supabase discards it and substitutes its own Site URL, which is a bare origin with no path, so the link lands on the wrong host and never reaches the callback. Getting the app side right does not help until **Authentication, URL Configuration** lists the domain.
-- `/auth/callback` exchanges the code for a session, adopts the guest shield cookies onto the new profile, and redirects on. OAuth and magic link both land here, which is why cookie adoption happens in the route as well as in the signup action.
+- `/auth/callback` exchanges the code for a session, adopts the guest shield cookies onto the new profile, and redirects on. OAuth and email confirmation both land here, which is why cookie adoption happens in the route as well as in the signup action.
 - A profile row is created by a database trigger the moment an `auth.users` row appears, with a generated `player_xxxxxx` username. Onboarding replaces it. Signup never fails on a missing profile.
 - Signing out is one server action, reachable from the account menu in the header and the bottom of settings. It clears the session and returns to the landing page.
 - Every auth action logs the Supabase code, status, and message with `console.error`, and never an email, token, or password. Known codes map to specific copy in `lib/auth-errors.ts`; unknown codes keep a generic message rather than leaking internals.
@@ -149,7 +150,7 @@ Exceeding either raises, and the server action maps it to "You are posting too q
 
 These numbers are tuned for a quiet forum. Review them before a launch spike; that is on the backlog.
 
-Signup, magic link, and both composers carry a honeypot: a field named `website`, moved off screen rather than hidden so a form filler still fills it, out of the tab order and out of the accessibility tree so a person never meets it. A tripped signup or magic link gets the answer a real one gets and nothing happens. A tripped post or reply gets a generic failure and writes nothing. There is no per IP signup limit yet; the proposed migration for one is written out in [../BACKLOG.md](../BACKLOG.md).
+Signup and both composers carry a honeypot: a field named `website`, moved off screen rather than hidden so a form filler still fills it, out of the tab order and out of the accessibility tree so a person never meets it. A tripped signup gets the answer a real one gets and nothing happens. A tripped post or reply gets a generic failure and writes nothing. There is no per IP signup limit yet; the proposed migration for one is written out in [../BACKLOG.md](../BACKLOG.md).
 
 ## Storage
 

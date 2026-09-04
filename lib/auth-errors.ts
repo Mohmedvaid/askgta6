@@ -45,6 +45,10 @@ const MESSAGES: Record<string, string> = {
   request_timeout: "That took too long. Try again.",
 };
 
+/** Shown if a magic link form is posted while the method is switched off. */
+export const MAGIC_LINK_DISABLED =
+  "Sign in links are turned off right now. Use your email and password.";
+
 // The redirect allow list is a project setting, not something a reader can fix,
 // so the copy says who has to fix it rather than pretending they mistyped.
 const REDIRECT_NOT_ALLOWED =

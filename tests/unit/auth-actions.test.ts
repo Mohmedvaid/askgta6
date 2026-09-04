@@ -26,6 +26,17 @@ vi.mock("@/lib/supabase/server", () => ({
 
 vi.mock("@/lib/adopt-progress", () => ({ adoptAnonymousShield: async () => null }));
 
+// Magic link is switched off in the app. These tests flip it back on so the
+// implementation stays covered while it is disabled, and switch it off again to
+// prove the guard. See lib/auth-features.ts.
+const features = { MAGIC_LINK_ENABLED: true };
+
+vi.mock("@/lib/auth-features", () => ({
+  get MAGIC_LINK_ENABLED() {
+    return features.MAGIC_LINK_ENABLED;
+  },
+}));
+
 vi.mock("next/navigation", () => ({
   redirect: (url: string) => {
     throw new Error(`REDIRECT:${url}`);
@@ -33,6 +44,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 const { sendMagicLink, signIn, signOut, signUp } = await import("@/app/auth/actions");
+const { MAGIC_LINK_DISABLED } = await import("@/lib/auth-errors");
 const { authCallbackUrl } = await import("@/lib/auth-callback");
 const { HONEYPOT_FIELD } = await import("@/lib/honeypot");
 
@@ -58,6 +70,7 @@ async function captureRedirect(run: () => Promise<unknown>): Promise<string> {
 }
 
 beforeEach(() => {
+  features.MAGIC_LINK_ENABLED = true;
   calls.length = 0;
   for (const key of Object.keys(results)) delete results[key];
   logged = [];
@@ -110,7 +123,30 @@ describe("signUp", () => {
   });
 });
 
-describe("sendMagicLink", () => {
+describe("sendMagicLink while it is disabled", () => {
+  it("does nothing at all, and says so", async () => {
+    features.MAGIC_LINK_ENABLED = false;
+
+    expect(await sendMagicLink(null, form({ email: VALID.email }))).toEqual({
+      ok: false,
+      error: MAGIC_LINK_DISABLED,
+    });
+
+    // No Supabase call, so no email, no log line, and no rate limit spent.
+    expect(calls).toHaveLength(0);
+    expect(logged).toHaveLength(0);
+  });
+
+  it("is the shipped state, so a stray form post reaches nothing", async () => {
+    const { MAGIC_LINK_ENABLED } = await vi.importActual<typeof import("@/lib/auth-features")>(
+      "@/lib/auth-features",
+    );
+
+    expect(MAGIC_LINK_ENABLED).toBe(false);
+  });
+});
+
+describe("sendMagicLink when it is switched back on", () => {
   it("passes emailRedirectTo built from the site url", async () => {
     await sendMagicLink(null, form({ email: VALID.email }));
 
