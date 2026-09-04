@@ -58,7 +58,8 @@ tests/
 
 - Email and password, magic link, and Discord and Google behind their flags.
 - Sessions live in cookies, written by `@supabase/ssr`. `middleware.ts` refreshes them so a server render never sees a stale session.
-- Signup and magic link pass `emailRedirectTo` built as `NEXT_PUBLIC_SITE_URL` plus `/auth/callback`. That exact origin has to be in the Supabase redirect allow list or Supabase refuses the request.
+- Every auth redirect is built by `authCallbackUrl()` in `lib/auth-callback.ts` and nothing else. It prefers the origin the request actually arrived on, from `x-forwarded-host` and `x-forwarded-proto`, over `NEXT_PUBLIC_SITE_URL`, because the variable is baked in at build time and can be stale. It always appends `/auth/callback`, ignores a loopback origin outside development, and throws in production rather than mailing a link to localhost. `tests/unit/auth-redirect.test.ts` scans the source and fails if any auth call builds a redirect by hand.
+- **That exact origin still has to be in the Supabase redirect allow list.** When it is not, Supabase discards it and substitutes its own Site URL, which is a bare origin with no path, so the link lands on the wrong host and never reaches the callback. Getting the app side right does not help until **Authentication, URL Configuration** lists the domain.
 - `/auth/callback` exchanges the code for a session, adopts the guest shield cookies onto the new profile, and redirects on. OAuth and magic link both land here, which is why cookie adoption happens in the route as well as in the signup action.
 - A profile row is created by a database trigger the moment an `auth.users` row appears, with a generated `player_xxxxxx` username. Onboarding replaces it. Signup never fails on a missing profile.
 - Signing out is one server action, reachable from the account menu in the header and the bottom of settings. It clears the session and returns to the landing page.

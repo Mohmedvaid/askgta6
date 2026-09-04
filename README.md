@@ -108,7 +108,11 @@ Vercel Analytics, mounted in the root layout. `lib/analytics.ts` declares exactl
 
 ## Auth
 
-Email and password, magic link, and Discord and Google behind their flags. Sign up and magic link both pass `emailRedirectTo` built from `NEXT_PUBLIC_SITE_URL` plus `/auth/callback`, so that origin has to be in the Supabase project's redirect allow list.
+Email and password, magic link, and Discord and Google behind their flags.
+
+Every auth redirect is built by `authCallbackUrl()` in `lib/auth-callback.ts` and nothing else, which a source scanning test enforces. It prefers the origin the request arrived on, from `x-forwarded-host` and `x-forwarded-proto`, over `NEXT_PUBLIC_SITE_URL`, because that variable is baked in at build time and can be stale. It always appends `/auth/callback` and throws in production rather than falling back to localhost.
+
+That origin still has to be in the Supabase project's redirect allow list. When it is not, Supabase discards it and substitutes its own Site URL, which is a bare origin with no path.
 
 Every auth action logs the Supabase code, status, and message with `console.error` so Vercel runtime logs show what actually failed, and never logs an email, token, or password. Known codes map to copy that says what to do next (rate limited, redirect not allowed, invalid credentials, email already registered); anything unmapped keeps a generic message rather than leaking internals. The mapping is `lib/auth-errors.ts`.
 

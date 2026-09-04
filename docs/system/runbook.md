@@ -93,6 +93,14 @@ Do these in order. Each one takes effect somewhere different.
 
 When a reader reports "it just says it did not work", check the Vercel log first for the mapped code, then the Supabase auth log for what the API actually returned.
 
+## A magic link points at the wrong host
+
+Read the `redirect_to` on the Supabase verify link in the email.
+
+**Bare origin, no `/auth/callback`:** that is Supabase, not the app. The app can only ever emit a URL ending in `/auth/callback`, so a bare origin means the project rejected what was sent and fell back to its own Site URL. Fix both fields under **Authentication, URL Configuration**: Site URL to the domain, and the domain's `/auth/callback` added to Redirect URLs. Keep `http://localhost:3000/auth/callback` in the list for local work.
+
+**Right path, wrong host:** that is the app. Since the request origin now wins over `NEXT_PUBLIC_SITE_URL`, this means the request itself arrived on that host, so check the domain assignment in Vercel rather than the variable.
+
 ## Redeploy
 
 Any push to `main` deploys. To redeploy the same commit, for example after changing a `NEXT_PUBLIC_*` variable:

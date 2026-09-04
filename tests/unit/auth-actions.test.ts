@@ -70,28 +70,13 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("the callback url", () => {
-  it("is built from NEXT_PUBLIC_SITE_URL", () => {
-    const original = process.env.NEXT_PUBLIC_SITE_URL;
-
-    process.env.NEXT_PUBLIC_SITE_URL = "https://askgta6.example";
-    expect(authCallbackUrl()).toBe("https://askgta6.example/auth/callback");
-
-    delete process.env.NEXT_PUBLIC_SITE_URL;
-    expect(authCallbackUrl()).toBe("http://localhost:3000/auth/callback");
-
-    if (original === undefined) delete process.env.NEXT_PUBLIC_SITE_URL;
-    else process.env.NEXT_PUBLIC_SITE_URL = original;
-  });
-});
-
 describe("signUp", () => {
   it("passes emailRedirectTo built from the site url", async () => {
     results.signUp = { data: { session: null, user: null }, error: null };
     await signUp(null, form(VALID));
 
     const options = (calls[0]!.args[0] as { options: { emailRedirectTo: string } }).options;
-    expect(options.emailRedirectTo).toBe(authCallbackUrl());
+    expect(options.emailRedirectTo).toBe(await authCallbackUrl());
     expect(options.emailRedirectTo).toMatch(/\/auth\/callback$/);
   });
 
@@ -130,7 +115,7 @@ describe("sendMagicLink", () => {
     await sendMagicLink(null, form({ email: VALID.email }));
 
     const options = (calls[0]!.args[0] as { options: { emailRedirectTo: string } }).options;
-    expect(options.emailRedirectTo).toBe(authCallbackUrl());
+    expect(options.emailRedirectTo).toBe(await authCallbackUrl());
   });
 
   it("maps a rate limit and logs it", async () => {

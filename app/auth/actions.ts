@@ -41,7 +41,7 @@ export async function signUp(_state: ActionResult | null, formData: FormData): P
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signUp({
     ...parsed.data,
-    options: { emailRedirectTo: authCallbackUrl() },
+    options: { emailRedirectTo: await authCallbackUrl() },
   });
 
   if (error) return { ok: false, error: reportAuthError("signUp", error) };
@@ -62,7 +62,7 @@ export async function sendMagicLink(_state: ActionResult | null, formData: FormD
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithOtp({
     email: email.data,
-    options: { emailRedirectTo: authCallbackUrl() },
+    options: { emailRedirectTo: await authCallbackUrl() },
   });
 
   if (error) return { ok: false, error: reportAuthError("sendMagicLink", error) };
@@ -76,7 +76,7 @@ export async function signInWithProvider(formData: FormData): Promise<void> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
-    options: { redirectTo: authCallbackUrl() },
+    options: { redirectTo: await authCallbackUrl() },
   });
 
   if (error) {
