@@ -40,11 +40,50 @@ supabase link --project-ref hxljpyqwhdhxkcasmgut
 pnpm supabase:push
 ```
 
-`supabase link` needs a personal access token, from **Account, Access Tokens** in the Supabase dashboard. `supabase login` stores it. Full procedure, including the no token route, is in [runbook.md](runbook.md).
+`supabase link` needs a personal access token, from **Account, Access Tokens** in the Supabase dashboard. `supabase login` stores it. Those are not the project API keys above; see [Personal access tokens](#personal-access-tokens). Full procedure, including the no token route, is in [runbook.md](runbook.md).
 
 ### Auth email
 
-The Supabase built in sender, which is heavily rate limited and not meant for production volume. Resend SMTP is on the backlog and has to be wired in before launch. Until it is, "Confirm email" being on will bottleneck signups.
+**Resend, over custom SMTP.** Wired up September 3, 2026. The Supabase built in sender is no longer in the path.
+
+- Resend team: the existing one in Mohmed's Resend account. No new team or workspace was created.
+- Sending domain `askgta6.com`, verified in Resend with DKIM. The two CNAME records Resend issued, and a DMARC record, are set at Namecheap alongside the Vercel records. See [Domain and DNS](#domain-and-dns).
+- Supabase **Authentication, Emails, SMTP Settings**, custom SMTP enabled:
+
+| Field | Value |
+| --- | --- |
+| Host | `smtp.resend.com` |
+| Port | `465` |
+| Username | `resend` |
+| Password | a Resend API key. Kept in Mohmed's password manager, never in the repository. |
+| Sender email | `noreply@askgta6.com` |
+
+The username is the literal string `resend` for every Resend account. It is not an email address and not the API key. The API key goes in the password field.
+
+**"Confirm email" is on.** That is safe now that the sender is Resend rather than the built in one.
+
+### Auth URLs
+
+**Authentication, URL Configuration**, set September 3, 2026:
+
+- Site URL: `https://askgta6.com`
+- Redirect URLs, all three:
+  - `https://askgta6.com/auth/callback`
+  - `https://www.askgta6.com/auth/callback`
+  - `http://localhost:3000/auth/callback`
+
+The www entry is there even though www redirects to the apex, because a link clicked from an email that hits www should not be rejected before the redirect can happen. The localhost entry is for local development and stays.
+
+This list is the real gate on where an auth link may point. When Supabase receives a `redirect_to` that is not on it, it does not error: it silently substitutes the Site URL, which is a bare origin with no path. That failure mode and how to spot it are in [runbook.md](runbook.md).
+
+### Personal access tokens
+
+Separate from the project API keys above, and easy to confuse with them.
+
+- Created at https://supabase.com/dashboard/account/tokens, under **Account, Access Tokens**.
+- They authenticate a person against the **management API** (`api.supabase.com`) and the Supabase CLI, across every project that person can see. Project API keys authenticate an app against one project's data.
+- A management API call sends one as `Authorization: Bearer <token>`. The runbook uses this to read and write Auth config when the dashboard is not cooperating.
+- Anything created during go live is on the rotation list in [BACKLOG.md](../BACKLOG.md).
 
 ## Vercel
 
@@ -64,7 +103,7 @@ Anything named `NEXT_PUBLIC_*` is **inlined into the bundle at build time**, not
 | `NEXT_PUBLIC_SUPABASE_URL` | config | build time | The project URL, `https://hxljpyqwhdhxkcasmgut.supabase.co`. Also used by `next.config.ts` to build the Content Security Policy. |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | secret, but safe to expose | build time | The Supabase publishable key. Every browser and server read goes through it, under row level security. |
 | `SUPABASE_SERVICE_ROLE_KEY` | secret | runtime, server only | The Supabase secret key. Bypasses row level security. Used by exactly two things: the seed script, and the admin moderation actions after they re-check `ADMIN_USER_IDS`. Never reaches the browser. |
-| `NEXT_PUBLIC_SITE_URL` | config | build time | The public origin, no trailing slash. Builds the `emailRedirectTo` for signup and magic links, and the Open Graph base URL. Must match what is in the Supabase redirect allow list. |
+| `NEXT_PUBLIC_SITE_URL` | config | build time | `https://askgta6.com`, the apex, no trailing slash. The canonical origin for the sitemap, RSS, and Open Graph. Auth redirects prefer the live request origin over this and only fall back to it, so a stale value here no longer breaks magic links, but it still has to match the Supabase redirect allow list. |
 | `NEXT_PUBLIC_AUTH_DISCORD_ENABLED` | config | build time | `true` renders the Discord sign in button. Set it only after the provider is configured in Supabase. |
 | `NEXT_PUBLIC_AUTH_GOOGLE_ENABLED` | config | build time | `true` renders the Google sign in button. Same rule. |
 | `NEXT_PUBLIC_INDEXING` | config | build time | `off` in production today. `off` disallows every crawler and sends noindex everywhere. `on` opens the landing page, feed, public groups, public profiles, and public posts. |
@@ -82,9 +121,26 @@ Sessions run in a container with the Supabase variables already set.
 
 ## Domain and DNS
 
-- Registrar: **TBD**. Fill this in when the domain is bought.
-- Nothing points at the Vercel project yet, so production is reachable only on the `vercel.app` hostname.
-- When the domain lands: add it in Vercel, point DNS, set `NEXT_PUBLIC_SITE_URL` to it, redeploy, and add the origin to the Supabase auth allow list. All four steps, in that order, or magic links break.
+Live since September 3, 2026.
+
+- Domain: **askgta6.com**
+- Registrar: **Namecheap**. DNS is managed at Namecheap under **Domain List, Manage, Advanced DNS**, with the nameservers left on **BasicDNS**. Namecheap is the only place records are edited; nothing is delegated to Vercel or Resend.
+- Both hostnames are added to the Vercel project (team mohmeds, project askgta6).
+
+### Records at Namecheap
+
+| Host | Type | Points to | What it does |
+| --- | --- | --- | --- |
+| `@` | A | the Vercel apex address | Serves the apex, `askgta6.com` |
+| `www` | CNAME | the Vercel CNAME target | Serves `www.askgta6.com` |
+| two Resend hosts | CNAME | the targets Resend issued | DKIM signing for outbound auth email |
+| the DMARC host | TXT | the DMARC policy record | Tells receivers what to do with mail that fails alignment |
+
+Vercel gives the exact A and CNAME targets on the project's **Domains** screen, and Resend gives its two CNAMEs on the domain's page. Copy them from there rather than from memory; the values change.
+
+### Which hostname is canonical
+
+**The apex is primary.** `www.askgta6.com` is configured in Vercel to redirect to `https://askgta6.com` with a **308**, so the www hostname works, keeps its method and body through the redirect, and never serves content of its own. Everything canonical, `NEXT_PUBLIC_SITE_URL`, the sitemap, RSS, and JSON-LD, uses the apex.
 
 ## Analytics
 

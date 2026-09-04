@@ -75,7 +75,9 @@ Do these in order. Each one takes effect somewhere different.
 
 **Database password.** Dashboard, **Project Settings, Database**, reset it. Store the new one in the password manager. Nothing in Vercel or the app uses it, so no redeploy is needed. Anyone with the old connection string loses access.
 
-**Supabase personal access tokens.** Dashboard, **Account, Access Tokens**. Revoke anything you do not recognise, in particular any token created for a Claude Code cloud session. Revoking one breaks `supabase link` on machines using it; run `supabase login` again with a fresh token.
+**Supabase personal access tokens.** Dashboard, **Account, Access Tokens**, https://supabase.com/dashboard/account/tokens. Revoke anything you do not recognise, in particular any token created for a Claude Code cloud session and the one created for the management API during go live. Revoking one breaks `supabase link` on machines using it; run `supabase login` again with a fresh token.
+
+**Resend API key.** Resend dashboard, **API Keys**. Create the replacement first, write it into Supabase **Authentication, Emails, SMTP Settings** or through the management API PATCH below, wait for "Reloading api with new configuration" in the Auth logs, send yourself a magic link to confirm, and only then delete the old key. Doing it the other way round takes auth email down between the two steps.
 
 **Vercel tokens.** Vercel account settings, **Tokens**. Revoke and reissue.
 
@@ -93,13 +95,174 @@ Do these in order. Each one takes effect somewhere different.
 
 When a reader reports "it just says it did not work", check the Vercel log first for the mapped code, then the Supabase auth log for what the API actually returned.
 
-## A magic link points at the wrong host
+## Auth email and redirect troubleshooting
 
-Read the `redirect_to` on the Supabase verify link in the email.
+The procedure that got auth email working on September 3, 2026. Every secret below
+is a placeholder. Never paste a real key into this file or into a shell history you
+keep.
 
-**Bare origin, no `/auth/callback`:** that is Supabase, not the app. The app can only ever emit a URL ending in `/auth/callback`, so a bare origin means the project rejected what was sent and fell back to its own Site URL. Fix both fields under **Authentication, URL Configuration**: Site URL to the domain, and the domain's `/auth/callback` added to Redirect URLs. Keep `http://localhost:3000/auth/callback` in the list for local work.
+### The order to check things in
 
-**Right path, wrong host:** that is the app. Since the request origin now wins over `NEXT_PUBLIC_SITE_URL`, this means the request itself arrived on that host, so check the domain assignment in Vercel rather than the variable.
+Work down the list. Each step rules out a layer, and the layers are easy to confuse
+because all three failure modes present to a person as "the link did not work".
+
+**1. Is the app sending the right redirect?**
+
+Vercel, project askgta6, **Settings, Environment Variables**. `NEXT_PUBLIC_SITE_URL`
+should be `https://askgta6.com`, scoped to Production, no trailing slash. It is
+inlined at build time, so **setting it does nothing until you redeploy**, and the
+redeploy has to run with "Use existing build cache" unchecked or the old value stays
+baked in.
+
+Since the go live fix, `authCallbackUrl()` prefers the origin the request actually
+arrived on over this variable, so a stale value is no longer fatal. Check it anyway:
+it is still what the sitemap, RSS, and Open Graph URLs use.
+
+**2. Is Supabase accepting that redirect?**
+
+**Authentication, URL Configuration**. Site URL and the Redirect URLs list are in
+[infrastructure.md](infrastructure.md). This is the step that actually bit us.
+
+**3. Read the verify link out of a real email.**
+
+Request a magic link, open the email, and copy the URL behind the button without
+clicking it. It looks like:
+
+```
+https://<project ref>.supabase.co/auth/v1/verify?token=<token>&type=magiclink&redirect_to=<origin>
+```
+
+The `redirect_to` parameter is the whole diagnosis:
+
+| What `redirect_to` shows | What it means |
+| --- | --- |
+| `https://askgta6.com/auth/callback` | Correct. If the link still fails, the problem is downstream, in the callback route or the session exchange. |
+| A **bare origin with no path**, for example `http://localhost:3000` | Supabase rejected what the app sent and substituted its own **Site URL**. The app can only ever emit a URL ending in `/auth/callback`, so a missing path means this is Supabase, not the app. Fix step 2. |
+| The right path on the wrong host | The app sent that host. Since the request origin now wins, this means the request itself arrived there, so check the domain assignment in Vercel rather than the variable. |
+
+**4. Read the Auth logs.**
+
+**Logs, Auth Logs**: https://supabase.com/dashboard/project/hxljpyqwhdhxkcasmgut/logs/auth-logs
+
+Filter the path to `/otp` for magic link requests and to `/verify` for the click on
+the link in the email. Between them they separate "the email was never sent" from
+"the email was sent and the link was refused".
+
+Read the `msg` and `error` fields, not just the status. The one to know:
+
+- **`535`**, or any message about authentication failing at the SMTP layer, is
+  **SMTP credentials**. Supabase could not log in to Resend. Almost always the
+  password field holds something other than a valid Resend API key, or the username
+  is not the literal string `resend`.
+
+### Prove an SMTP key works, independent of Supabase
+
+When step 4 says 535, test the key directly. If this succeeds and Supabase still
+fails, the key is fine and Supabase is holding a different value.
+
+```bash
+# Placeholders. Substitute a real key at the prompt, never in a file.
+RESEND_KEY='<resend api key>'
+
+curl --url 'smtps://smtp.resend.com:465' \
+  --ssl-reqd \
+  --user "resend:$RESEND_KEY" \
+  --mail-from 'noreply@askgta6.com' \
+  --mail-rcpt '<your inbox>' \
+  --upload-file - <<'EOF'
+From: AskGTA6 <noreply@askgta6.com>
+To: <your inbox>
+Subject: SMTP check
+
+Sent straight through smtp.resend.com, bypassing Supabase.
+EOF
+```
+
+A clean exit and an arriving email means the key, the port, the username, and the
+verified sending domain are all correct, and the fault is in what Supabase stored.
+
+### Set Auth config through the management API
+
+The dashboard's SMTP form sometimes appears to save and does not persist. The
+management API is the reliable path, and it also lets you read back what is actually
+stored rather than what the form is showing you.
+
+You need a **personal access token**, created at
+https://supabase.com/dashboard/account/tokens. It is not a project API key. See
+[infrastructure.md](infrastructure.md).
+
+```bash
+# Placeholders throughout.
+SUPABASE_PAT='<personal access token>'
+PROJECT_REF='hxljpyqwhdhxkcasmgut'
+```
+
+Read the whole Auth config, which is the fastest way to see what is really set:
+
+```bash
+curl -s -X GET \
+  "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" \
+  -H "Authorization: Bearer $SUPABASE_PAT" | jq '{
+    site_url,
+    uri_allow_list,
+    mailer_autoconfirm,
+    external_email_enabled,
+    smtp_host,
+    smtp_port,
+    smtp_user,
+    smtp_sender_name,
+    smtp_admin_email
+  }'
+```
+
+`smtp_pass` is never returned, only written, so its absence from the response says
+nothing about whether it is set. That is exactly why a wrong password is invisible
+in the dashboard and only shows up as a 535 in the Auth logs.
+
+Write the SMTP password, and anything else that will not stick:
+
+```bash
+curl -s -X PATCH \
+  "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" \
+  -H "Authorization: Bearer $SUPABASE_PAT" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "smtp_host": "smtp.resend.com",
+    "smtp_port": 465,
+    "smtp_user": "resend",
+    "smtp_pass": "<resend api key>",
+    "smtp_admin_email": "noreply@askgta6.com",
+    "smtp_sender_name": "AskGTA6"
+  }'
+```
+
+The URL fields go the same way when the dashboard is being unhelpful:
+
+```bash
+curl -s -X PATCH \
+  "https://api.supabase.com/v1/projects/$PROJECT_REF/config/auth" \
+  -H "Authorization: Bearer $SUPABASE_PAT" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "site_url": "https://askgta6.com",
+    "uri_allow_list": "https://askgta6.com/auth/callback,https://www.askgta6.com/auth/callback,http://localhost:3000/auth/callback"
+  }'
+```
+
+`uri_allow_list` is one comma separated string, not an array, and it **replaces** the
+whole list rather than adding to it. Read the config first and put every entry you
+want to keep back in.
+
+### Know when a save actually took effect
+
+A 200 from the PATCH means Supabase accepted the write. It does not mean the running
+auth server has picked it up.
+
+Watch the Auth logs for a line reading **"Reloading api with new configuration"**.
+That is the auth server restarting with what you just wrote. Until it appears, the
+old configuration is still what a signup or a magic link request will use, and
+retesting only re-proves the previous state. It usually lands within a few seconds.
+If it never appears, the save did not take, whatever the form said.
 
 ## Redeploy
 

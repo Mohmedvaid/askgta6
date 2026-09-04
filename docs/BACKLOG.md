@@ -6,18 +6,6 @@ GTA VI releases **November 19, 2026**. Digital pre-load is **November 12**, and 
 
 Roughly in the order they unblock each other.
 
-### Domain and DNS
-
-Buy the domain, add it to the Vercel project (team mohmeds, project askgta6), point DNS at Vercel, set `NEXT_PUBLIC_SITE_URL` to the domain with no trailing slash, then **redeploy**. That variable is baked in at build time, so changing it without a redeploy does nothing. Record the registrar in [system/infrastructure.md](system/infrastructure.md), which currently says TBD.
-
-### Supabase Auth URLs for the domain
-
-**Authentication, URL Configuration**: set Site URL to the domain and add `https://<domain>/auth/callback` to Redirect URLs. Keep `http://localhost:3000/auth/callback` for local work. Miss this and every magic link and confirmation email bounces with a redirect error. The app already maps that failure to copy that names this setting, so it will be obvious.
-
-### Resend SMTP, then turn "Confirm email" back on
-
-The Supabase built in sender is heavily rate limited and not meant for production. Wire Resend into **Authentication, Emails, SMTP Settings**, verify the sending domain, send a test, and only then turn "Confirm email" back on. Doing it the other way round bottlenecks every signup on a sender that will not keep up.
-
 ### Set ADMIN_USER_IDS
 
 Sign up on production, copy the uuid from **Authentication, Users**, set `ADMIN_USER_IDS` in Vercel to it, redeploy. Until then `/admin/reports` 404s for everyone and nobody can act on the report queue.
@@ -25,6 +13,13 @@ Sign up on production, copy the uuid from **Authentication, Users**, set `ADMIN_
 ### Rotate every secret placed in a Claude Code cloud environment
 
 Treat them as exposed: the Supabase publishable key, the secret key, and the database password. Follow the rotation order in [system/runbook.md](system/runbook.md). Separately, **revoke the claude-cloud Supabase access token** under **Account, Access Tokens**. Do this before the site is public, not after.
+
+### Rotate the two credentials used during go live
+
+Both were handled outside a password manager on September 3, 2026 while auth email was being debugged, so treat both as exposed.
+
+- **The Resend API key** now sitting in Supabase custom SMTP. Rotate it with the create, swap, verify, delete order in [system/runbook.md](system/runbook.md), not the other way round, or auth email goes down between the two steps.
+- **The Supabase personal access token** created for the management API calls, at https://supabase.com/dashboard/account/tokens. It carries account wide access to every project, which is wider than any project API key, so it is the more expensive of the two to leave lying around. Revoke it and issue a fresh one only when something needs it again.
 
 ### Delete or lock the seed accounts, decide what seed content stays
 
@@ -155,5 +150,13 @@ Parked deliberately. Nothing here blocks launch.
 ## Recently done
 
 Kept here briefly so a reader does not re-open a decision that has already been made.
+
+### Go live, September 3, 2026
+
+- **Domain and DNS.** `askgta6.com` registered at Namecheap, DNS on BasicDNS under Advanced DNS, A record on `@` and CNAME on `www` pointing at Vercel. Both hostnames added to the Vercel project, www redirects to the apex with a 308, apex is canonical. `NEXT_PUBLIC_SITE_URL` set to `https://askgta6.com` and redeployed. Records and targets are in [system/infrastructure.md](system/infrastructure.md).
+- **Supabase Auth URLs.** Site URL is the apex, and the allow list holds the apex, www, and localhost callback URLs. Getting this wrong is what made magic links point at localhost, because Supabase silently substitutes its Site URL for a redirect it does not recognise. The diagnosis path is written up in [system/runbook.md](system/runbook.md).
+- **Resend SMTP, and "Confirm email" back on.** `askgta6.com` verified in Resend with DKIM, two CNAMEs and a DMARC record at Namecheap, Supabase custom SMTP on `smtp.resend.com` port 465 as user `resend`, sending as `noreply@askgta6.com`. The built in Supabase sender is out of the path, so "Confirm email" is on without bottlenecking signups.
+
+### Earlier
 
 - **`getUser` dedupe.** `getViewer` was already wrapped in React's `cache()`; the client factory was not, and forty odd call sites each rebuilt one per render. Both are cached now, and `tests/unit/request-cache.test.ts` counts the calls across a page tree so it stays that way.
