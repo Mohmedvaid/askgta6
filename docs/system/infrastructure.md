@@ -53,7 +53,7 @@ pnpm supabase:push
 | Field | Value |
 | --- | --- |
 | Host | `smtp.resend.com` |
-| Port | `465` |
+| Port | `465`. Port `587` also works and is what the other project on this account uses. |
 | Username | `resend` |
 | Password | a Resend API key. Kept in Mohmed's password manager, never in the repository. |
 | Sender email | `noreply@askgta6.com` |

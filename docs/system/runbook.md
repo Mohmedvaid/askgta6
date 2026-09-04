@@ -181,6 +181,37 @@ EOF
 A clean exit and an arriving email means the key, the port, the username, and the
 verified sending domain are all correct, and the fault is in what Supabase stored.
 
+### What actually engaged custom SMTP, September 4, 2026
+
+Read this before spending time on any of the steps above. It is the resolution, and
+it is not what the layers suggest.
+
+**Custom SMTP only engages when the dashboard form is saved with every field filled
+in, in one submit, after toggling custom SMTP off and back on.** A partial save, or
+a save that leaves one field for later, leaves the project on the built in sender
+while the form looks correct.
+
+The confirmation is a single line in the Auth logs:
+
+```
+updating Email limiter from 2/1h to 30
+```
+
+Two per hour is the built in sender's rate limit. Thirty is the custom SMTP one. If
+that line is not in the log, custom SMTP is not engaged, whatever the form shows and
+whatever a GET of the config returns.
+
+Two things this cost us:
+
+- **Management API writes update the stored config but did not engage the service.**
+  A PATCH returned 200, a GET read the new values back, and mail kept going out
+  through the built in sender at 2 per hour. Use the API to read config and to
+  confirm what is stored. Do not trust it to turn this particular thing on.
+- **Port 587 works**, and is what the other project on this account uses. Port 465
+  is what is written down in [infrastructure.md](infrastructure.md) and it also
+  works, but if 465 is behaving strangely, 587 is the known good fallback rather
+  than a thing to debug.
+
 ### Set Auth config through the management API
 
 The dashboard's SMTP form sometimes appears to save and does not persist. The
