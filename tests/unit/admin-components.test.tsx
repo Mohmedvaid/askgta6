@@ -5,13 +5,17 @@ import userEvent from "@testing-library/user-event";
 const setBanned = vi.fn();
 const deleteAccount = vi.fn();
 const moderate = vi.fn();
+const editBlockList = vi.fn();
+const adminEditProfile = vi.fn();
 
-vi.mock("@/actions/admin", () => ({ setBanned, deleteAccount, moderate }));
+vi.mock("@/actions/admin", () => ({ setBanned, deleteAccount, moderate, editBlockList, adminEditProfile }));
 
 const { StatBar } = await import("@/components/admin/StatBar");
 const { BanControl } = await import("@/components/admin/BanControl");
 const { DeleteAccountControl } = await import("@/components/admin/DeleteAccountControl");
 const { Turnstile } = await import("@/components/form/Turnstile");
+const { BlockListEditor } = await import("@/components/admin/BlockListEditor");
+const { ProfileControl } = await import("@/components/admin/ProfileControl");
 
 const DAYS = [
   { day: "2026-09-01", value: 0 },
@@ -108,5 +112,73 @@ describe("Turnstile", () => {
     const { container } = render(<Turnstile />);
     expect(container.querySelector('div[id^="turnstile-"]')).not.toBeNull();
     vi.unstubAllEnvs();
+  });
+});
+
+describe("BlockListEditor", () => {
+  const entries = [
+    { id: "1", value: "bit.ly", note: "shortener" },
+    { id: "2", value: "pastebin.com", note: null },
+  ];
+
+  it("lists what is blocked and offers a remove for each", () => {
+    render(<BlockListEditor list="domain" title="Blocked domains" hint="Paste a link." entries={entries} />);
+
+    expect(screen.getByText("bit.ly")).toBeInTheDocument();
+    expect(screen.getByText("shortener")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Remove" })).toHaveLength(2);
+  });
+
+  it("says so rather than showing an empty list", () => {
+    render(<BlockListEditor list="phrase" title="Blocked phrases" hint="Keep them specific." entries={[]} />);
+
+    expect(screen.getByText("Nothing on this list.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Remove" })).toBeNull();
+  });
+
+  it("sends which list it is editing, so one action serves both", () => {
+    const { container } = render(
+      <BlockListEditor list="phrase" title="Blocked phrases" hint="h" entries={entries} />,
+    );
+
+    expect(container.querySelector('input[name="list"]')).toHaveValue("phrase");
+    expect(container.querySelector('input[name="action"]')).toHaveValue("add");
+  });
+
+  it("reports a refusal from the server", async () => {
+    editBlockList.mockResolvedValue({ ok: false, error: "That is already on the list." });
+
+    render(<BlockListEditor list="domain" title="Blocked domains" hint="h" entries={[]} />);
+    await userEvent.type(screen.getByLabelText("Add to Blocked domains"), "bit.ly");
+    await userEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("already on the list");
+  });
+});
+
+describe("ProfileControl", () => {
+  it("offers a rename prefilled with the current name", () => {
+    render(<ProfileControl userId="user-1" username="dex" hasBio={false} />);
+
+    expect(screen.getByLabelText("Rename")).toHaveValue("dex");
+    expect(screen.getByRole("button", { name: "Save name" })).toBeInTheDocument();
+  });
+
+  it("offers to clear a bio only when there is one", () => {
+    const { unmount } = render(<ProfileControl userId="user-1" username="dex" hasBio={false} />);
+    expect(screen.queryByRole("button", { name: "Clear bio" })).toBeNull();
+    unmount();
+
+    render(<ProfileControl userId="user-1" username="dex" hasBio />);
+    expect(screen.getByRole("button", { name: "Clear bio" })).toBeInTheDocument();
+  });
+
+  it("reports a taken username", async () => {
+    adminEditProfile.mockResolvedValue({ ok: false, error: "That username is taken." });
+
+    render(<ProfileControl userId="user-1" username="dex" hasBio={false} />);
+    await userEvent.click(screen.getByRole("button", { name: "Save name" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("taken");
   });
 });

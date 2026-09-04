@@ -1,3 +1,5 @@
+import { USER_LINK_REL } from "./links";
+
 /**
  * A deliberately small markdown renderer for post and reply bodies.
  * Everything is HTML escaped first and only tags this file emits ever reach the page,
@@ -32,7 +34,7 @@ function renderInline(escaped: string, token: string): string {
 
   text = text.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (match, label: string, href: string) =>
     isSafeHref(href)
-      ? `<a href="${href.trim()}" rel="nofollow noopener noreferrer" target="_blank">${label}</a>`
+      ? `<a href="${href.trim()}" rel="${USER_LINK_REL}" target="_blank">${label}</a>`
       : match,
   );
 

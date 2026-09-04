@@ -13,6 +13,8 @@ export type Viewer = {
   theme: "dark" | "light";
   isAdmin: boolean;
   bannedAt: string | null;
+  bio: string | null;
+  usernameChangedAt: string | null;
 };
 
 /** The signed in person, or null. Cached per request so a page can ask more than once. */
@@ -23,7 +25,7 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_path, progress, spoiler_shield, theme, is_admin, banned_at")
+    .select("id, username, display_name, avatar_path, progress, spoiler_shield, theme, is_admin, banned_at, bio, username_changed_at")
     .eq("id", auth.user.id)
     .single();
 
@@ -41,6 +43,8 @@ export const getViewer = cache(async (): Promise<Viewer | null> => {
     // What is here is for rendering; the database enforces both independently.
     isAdmin: profile.is_admin === true,
     bannedAt: profile.banned_at ?? null,
+    bio: profile.bio ?? null,
+    usernameChangedAt: profile.username_changed_at ?? null,
   };
 });
 

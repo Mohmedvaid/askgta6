@@ -14,6 +14,8 @@ describe("migrations", () => {
     );
     expect(result.rows.map((r) => r.tablename)).toEqual([
       "admin_actions",
+      "blocked_domains",
+      "blocked_phrases",
       "group_invites",
       "group_members",
       "groups",

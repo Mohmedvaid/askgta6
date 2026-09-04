@@ -14,8 +14,14 @@ returns uuid
 language sql
 stable
 as $$
+  -- The claims setting is an empty string once a test has reset it, and an empty
+  -- string is not valid json. Supabase's own definition guards the same way, so
+  -- this matches it rather than working around the harness.
   select nullif(
-    coalesce(current_setting('request.jwt.claims', true)::json ->> 'sub', ''),
+    coalesce(
+      nullif(current_setting('request.jwt.claims', true), '')::json ->> 'sub',
+      ''
+    ),
     ''
   )::uuid;
 $$;

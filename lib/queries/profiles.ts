@@ -7,13 +7,14 @@ export type ProfileRow = {
   avatar_path: string | null;
   progress: number;
   created_at: string;
+  bio: string | null;
 };
 
 export async function getProfileByUsername(username: string): Promise<ProfileRow | null> {
   const supabase = await createSupabaseServerClient();
   const { data } = await supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_path, progress, created_at")
+    .select("id, username, display_name, avatar_path, progress, created_at, bio")
     .eq("username", username)
     .maybeSingle();
   return (data as ProfileRow | null) ?? null;

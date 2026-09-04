@@ -38,7 +38,12 @@ export default async function SettingsPage() {
 
       <section className="space-y-6">
         <h2 className="font-display text-sm font-semibold tracking-widest text-text-muted uppercase">Profile</h2>
-        <ProfileForm username={viewer.username} displayName={viewer.displayName} />
+        <ProfileForm
+          username={viewer.username}
+          displayName={viewer.displayName}
+          bio={viewer.bio}
+          usernameChangedAt={viewer.usernameChangedAt}
+        />
       </section>
 
       <section className="space-y-6">

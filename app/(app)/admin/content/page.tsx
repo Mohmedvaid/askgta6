@@ -2,19 +2,48 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Empty } from "@/components/Empty";
 import { ModerationRow } from "@/components/ModerationRow";
-import { listRecentGroups, listRecentPosts } from "@/lib/queries/admin";
+import { BlockListEditor } from "@/components/admin/BlockListEditor";
+import { listBlockedDomains, listBlockedPhrases, listRecentGroups, listRecentPosts } from "@/lib/queries/admin";
 import { relativeTime } from "@/lib/relative-time";
 import { NOINDEX } from "@/lib/indexing";
 
 export const metadata: Metadata = { title: "Posts and groups", robots: NOINDEX };
 
 export default async function AdminContentPage() {
-  const [posts, groups] = await Promise.all([listRecentPosts(), listRecentGroups()]);
+  const [posts, groups, domains, phrases] = await Promise.all([
+    listRecentPosts(),
+    listRecentGroups(),
+    listBlockedDomains(),
+    listBlockedPhrases(),
+  ]);
 
   return (
     <div className="space-y-10">
+      <section className="space-y-4">
+        <div>
+          <h1 className="font-display text-3xl font-bold text-text-primary">Spam lists</h1>
+          <p className="mt-2 text-sm text-text-secondary">
+            A match does not refuse the post. It saves it hidden and files a report, so it lands in the queue with a
+            note saying which rule fired. That way an over eager rule is visible rather than silent.
+          </p>
+        </div>
+
+        <BlockListEditor
+          list="domain"
+          title="Blocked domains"
+          hint="Paste a link or a bare host. Subdomains of a blocked host count too."
+          entries={domains}
+        />
+        <BlockListEditor
+          list="phrase"
+          title="Blocked phrases"
+          hint="Matched against the body, lowercased, whitespace flattened. Keep them specific."
+          entries={phrases}
+        />
+      </section>
+
       <section>
-        <h1 className="font-display text-3xl font-bold text-text-primary">Recent posts</h1>
+        <h2 className="font-display text-2xl font-bold text-text-primary">Recent posts</h2>
         <p className="mt-2 text-sm text-text-secondary">The newest fifty, hidden ones included.</p>
 
         {posts.length === 0 ? (
@@ -35,7 +64,7 @@ export default async function AdminContentPage() {
                     Open
                   </Link>
                 </div>
-                <h2 className="mt-2 font-display font-semibold text-text-primary">{post.title}</h2>
+                <h3 className="mt-2 font-display font-semibold text-text-primary">{post.title}</h3>
                 <ModerationRow targetType="post" targetId={post.id} />
               </li>
             ))}

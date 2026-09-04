@@ -41,16 +41,18 @@ export default async function ProfilePage({ params, searchParams }: { params: Pa
       <header className="flex items-center gap-5">
         <Avatar username={profile.username} url={url} size={72} />
         <div>
-          <h1 className="font-display text-2xl font-bold text-text-primary">
-            {profile.display_name ?? profile.username}
-          </h1>
-          <p className="text-sm text-text-muted">@{profile.username}</p>
+          <h1 className="font-display text-2xl font-bold text-text-primary">{profile.username}</h1>
+          {profile.display_name ? (
+            <p className="text-sm text-text-secondary">{profile.display_name}</p>
+          ) : null}
           <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-text-muted">
             <span>Member since {monthAndYear(profile.created_at)}</span>
             <SpoilerBadge level={profile.progress} />
           </div>
         </div>
       </header>
+
+      {profile.bio ? <p className="max-w-2xl text-sm text-text-secondary">{profile.bio}</p> : null}
 
       <nav aria-label="Profile sections" className="flex gap-6 border-b border-border">
         {[

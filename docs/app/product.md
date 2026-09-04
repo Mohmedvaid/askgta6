@@ -46,6 +46,25 @@ Eight levels, 0 through 7:
 - Rate limits: 5 posts and 15 replies per person per minute.
 - Five distinct reporters hide an item automatically, pending a human look.
 
+### Links
+
+- **Every link is nofollow, ugc, and opens in a new tab.** Posting here buys nobody any search ranking, which is the point.
+- **Links stay links.** Nothing embeds, nothing unfurls, and there are no image uploads in posts. A YouTube URL is a URL.
+- **New accounts cannot post links.** The privilege arrives after a day, or straight away with an accepted answer or 3 upvotes. The composer says which, by name, when it refuses.
+
+### What the spam filter does
+
+Three rules run on every post and reply, on create and on edit: a blocked domain, a blocked phrase, and the same body posted twice inside an hour from any account.
+
+A match does not bounce the post back. It saves, hides itself, and files a report naming the rule, so a moderator sees it and the author is not handed a list of which word to change. Both lists are editable from the admin screen.
+
+## Identity
+
+- **Your username is who you are here.** It is the profile URL and the byline on everything you write. A display name is optional and sits next to it, never in place of it.
+- **You can change your username once every 30 days.** 3 to 20 characters, lowercase letters, digits, and underscores. The name you leave behind is free for anyone else immediately. The generated `player_xxxxxx` name you start with does not count, so the first one you pick is free to correct.
+- **A bio, up to 200 characters**, on your profile.
+- **You cannot change your email.** There is no field for it. An account is recovered through the password reset flow, which needs the original inbox, and that only works if the address cannot be moved.
+
 ## Groups
 
 Smaller rooms inside the site.
@@ -63,6 +82,7 @@ Each of these was considered and left out of v1. They are not oversights.
 - **Notifications of any kind.** Nothing brings a reader back today. This is the largest missing behaviour and it is first on the "Later" list, not absent by principle.
 - **Realtime anything.** No live updating feeds or presence.
 - **Image uploads in posts.** Avatars are the only thing stored. Images are a moderation surface, a storage cost, and a spoiler vector all at once.
+- **Link embeds and unfurls.** A pasted URL stays a URL. Fetching one to build a preview means the server visits whatever anybody posts, and the preview itself is a spoiler surface nothing gates.
 - **An AI assistant.** No summarizer, no answer bot.
 - **A roles or permissions system.** Moderation is a report count, an auto hide, and a list of uuids in an environment variable.
 - **Infinite scroll.** A Load more link, so the back button works.

@@ -44,7 +44,7 @@ export function ReplyItem({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">
             <Link href={`/u/${reply.author.username}`} className="font-medium text-text-secondary">
-              {reply.author.display_name ?? reply.author.username}
+              {reply.author.username}
             </Link>
             <span>{relativeTime(reply.created_at)}</span>
             <SpoilerBadge level={reply.spoiler_level} tone={reply.hidden ? "loud" : "quiet"} />

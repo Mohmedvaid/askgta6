@@ -58,6 +58,7 @@ export const profileSchema = z.object({
     .toLowerCase()
     .refine(isValidUsername, "Use 3 to 20 lowercase letters, digits, or underscores."),
   displayName: z.string().trim().max(40, "Display name is capped at 40 characters.").optional(),
+  bio: z.string().trim().max(200, "Bio is capped at 200 characters.").optional(),
 });
 
 export const shieldSchema = z.object({
@@ -78,6 +79,26 @@ export const moderationSchema = z.object({
   targetType: z.enum(["post", "reply"]),
   targetId: uuid,
   action: z.enum(["hide", "unhide", "delete", "dismiss"]),
+});
+
+export const adminProfileSchema = z.object({
+  userId: uuid,
+  username: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine(isValidUsername, "Use 3 to 20 lowercase letters, digits, or underscores.")
+    .optional(),
+  clearBio: z.boolean().optional(),
+});
+
+export const blockListSchema = z.object({
+  list: z.enum(["domain", "phrase"]),
+  action: z.enum(["add", "remove"]),
+  // A domain is stored bare and lowercase; a phrase is matched against a
+  // lowercased body, so both are normalized here rather than at every read.
+  value: z.string().trim().toLowerCase().min(2, "Too short to block.").max(120, "Too long to block."),
+  note: z.string().trim().max(120).optional(),
 });
 
 export const banSchema = z.object({

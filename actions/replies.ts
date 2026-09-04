@@ -6,6 +6,9 @@ import { getViewer } from "@/lib/viewer";
 import { firstIssue, replyInputSchema, type ActionResult } from "@/lib/validation";
 import { honeypotTripped } from "@/lib/honeypot";
 import { TURNSTILE_FIELD, verifyTurnstile } from "@/lib/turnstile";
+import { containsLink } from "@/lib/links";
+import { checkLinkPrivilege } from "@/lib/link-privilege";
+import { checkSpam, quarantine } from "@/lib/spam";
 
 export async function createReply(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const viewer = await getViewer();
@@ -23,13 +26,24 @@ export async function createReply(_state: ActionResult | null, formData: FormDat
   });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
+  if (containsLink(parsed.data.body)) {
+    const privilege = await checkLinkPrivilege(viewer);
+    if (!privilege.allowed) return { ok: false, error: privilege.reason };
+  }
+
+  const verdict = await checkSpam({ body: parsed.data.body });
+
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.from("replies").insert({
-    post_id: parsed.data.postId,
-    author_id: viewer.userId,
-    body: parsed.data.body,
-    spoiler_level: parsed.data.spoilerLevel,
-  });
+  const { data, error } = await supabase
+    .from("replies")
+    .insert({
+      post_id: parsed.data.postId,
+      author_id: viewer.userId,
+      body: parsed.data.body,
+      spoiler_level: parsed.data.spoilerLevel,
+    })
+    .select("id")
+    .single();
 
   if (error) {
     return {
@@ -39,6 +53,8 @@ export async function createReply(_state: ActionResult | null, formData: FormDat
         : "That reply could not be saved.",
     };
   }
+
+  if (verdict.spam && data) await quarantine("reply", data.id, viewer.userId, verdict.note);
 
   revalidatePath(`/p/${parsed.data.postId}`);
   return { ok: true, data: undefined };

@@ -271,6 +271,21 @@ describe("SpoilerDemo", () => {
   });
 });
 
+describe("the byline", () => {
+  it("names a post author by username, not by display name", () => {
+    const post = {
+      ...visiblePost,
+      author: { username: "dex", display_name: "Dex Deluxe", avatar_path: null },
+    };
+
+    render(<PostCard post={post} />);
+
+    // Reddit style: the username is the identity, everywhere.
+    expect(screen.getByRole("link", { name: "dex" })).toBeInTheDocument();
+    expect(screen.queryByText("Dex Deluxe")).toBeNull();
+  });
+});
+
 describe("JsonLd", () => {
   it("renders nothing when the page is not indexable", () => {
     const { container } = render(<JsonLd data={null} />);

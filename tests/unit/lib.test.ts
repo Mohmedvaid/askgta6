@@ -142,8 +142,11 @@ describe("markdown", () => {
   });
 
   it("adds rel and target to external links", () => {
+    // ugc joined nofollow here: this is a forum, so every link in a body is user
+    // generated and search engines should be told. tests/unit/links.test.ts owns
+    // the full rule.
     const html = renderMarkdown("[docs](https://example.com)");
-    expect(html).toContain('rel="nofollow noopener noreferrer"');
+    expect(html).toContain('rel="nofollow ugc noopener"');
     expect(html).toContain('target="_blank"');
   });
 

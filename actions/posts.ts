@@ -7,6 +7,9 @@ import { getViewer } from "@/lib/viewer";
 import { firstIssue, postEditSchema, postInputSchema, type ActionResult } from "@/lib/validation";
 import { honeypotTripped } from "@/lib/honeypot";
 import { TURNSTILE_FIELD, verifyTurnstile } from "@/lib/turnstile";
+import { containsLink } from "@/lib/links";
+import { checkLinkPrivilege } from "@/lib/link-privilege";
+import { checkSpam, quarantine } from "@/lib/spam";
 
 function readForm(formData: FormData) {
   return {
@@ -38,6 +41,15 @@ export async function createPost(_state: ActionResult | null, formData: FormData
   const parsed = postInputSchema.safeParse(readForm(formData));
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
+  if (containsLink(parsed.data.body) || containsLink(parsed.data.title)) {
+    const privilege = await checkLinkPrivilege(viewer);
+    if (!privilege.allowed) return { ok: false, error: privilege.reason };
+  }
+
+  // Checked before the write so the note is ready, applied after so the row exists
+  // to hide and to report against.
+  const verdict = await checkSpam({ body: parsed.data.body });
+
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase
     .from("posts")
@@ -55,6 +67,8 @@ export async function createPost(_state: ActionResult | null, formData: FormData
 
   if (error || !data) return { ok: false, error: describe(error?.message ?? "") };
 
+  if (verdict.spam) await quarantine("post", data.id, viewer.userId, verdict.note);
+
   revalidatePath("/feed");
   redirect(`/p/${data.id}`);
 }
@@ -70,6 +84,15 @@ export async function editPost(_state: ActionResult | null, formData: FormData):
   });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
 
+  if (containsLink(parsed.data.body) || containsLink(parsed.data.title)) {
+    const privilege = await checkLinkPrivilege(viewer);
+    if (!privilege.allowed) return { ok: false, error: privilege.reason };
+  }
+
+  // An edit is a second chance to smuggle the same payload in, so the filter runs
+  // here too. The post excludes itself from the duplicate check.
+  const verdict = await checkSpam({ body: parsed.data.body, excludeId: parsed.data.postId });
+
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("posts")
@@ -83,6 +106,8 @@ export async function editPost(_state: ActionResult | null, formData: FormData):
     .eq("author_id", viewer.userId);
 
   if (error) return { ok: false, error: describe(error.message) };
+
+  if (verdict.spam) await quarantine("post", parsed.data.postId, viewer.userId, verdict.note);
 
   revalidatePath(`/p/${parsed.data.postId}`);
   redirect(`/p/${parsed.data.postId}`);

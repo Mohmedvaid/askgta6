@@ -25,6 +25,23 @@ vi.mock("@/lib/turnstile", async (importOriginal) => ({
   verifyTurnstile: async () => ({ ok: true }),
 }));
 
+// The spam filter and the link gate have their own files. Here they are stubbed so
+// the tests below are about the action, and flipped where the wiring is the point.
+const spam = { verdict: { spam: false } as { spam: boolean; rule?: string; note?: string }, quarantined: [] as unknown[] };
+
+vi.mock("@/lib/spam", () => ({
+  checkSpam: async () => spam.verdict,
+  quarantine: async (...args: unknown[]) => {
+    spam.quarantined.push(args);
+  },
+}));
+
+const links = { allowed: true };
+
+vi.mock("@/lib/link-privilege", () => ({
+  checkLinkPrivilege: async () => (links.allowed ? { allowed: true } : { allowed: false, reason: "no links yet" }),
+}));
+
 vi.mock("next/cache", () => ({ revalidatePath: () => undefined }));
 vi.mock("next/headers", () => ({ cookies: async () => ({ set: () => undefined }) }));
 vi.mock("next/navigation", () => ({
@@ -42,7 +59,9 @@ const { HONEYPOT_FIELD } = await import("@/lib/honeypot");
 const { createGroup, redeemInvite } = await import("@/actions/groups");
 const { saveProfile, setSpoilerShield, uploadAvatar } = await import("@/actions/profile");
 const { completeOnboarding } = await import("@/actions/onboarding");
-const { deleteAccount, moderate, setBanned } = await import("@/actions/admin");
+const { adminEditProfile, deleteAccount, editBlockList, moderate, setBanned } = await import(
+  "@/actions/admin"
+);
 
 const UUID = "8b2f0f7a-1111-4222-8333-444455556666";
 const SIGNED_IN = {
@@ -93,6 +112,9 @@ beforeEach(() => {
   holder.client = createFakeClient();
   adminHolder.client = createFakeClient();
   viewer.current = null;
+  spam.verdict = { spam: false };
+  spam.quarantined = [];
+  links.allowed = true;
 });
 
 describe("revealContent", () => {
@@ -680,5 +702,199 @@ describe("the composer honeypot", () => {
     data.set(HONEYPOT_FIELD, "");
 
     expect(await captureRedirect(() => createPost(null, data))).toBe(`/p/${UUID}`);
+  });
+});
+
+describe("the link gate on the composers", () => {
+  const linked = () => validPost({ body: "Everything is at https://example.com/thing right now." });
+
+  it("refuses a post with a link from an account that has not earned them", async () => {
+    viewer.current = SIGNED_IN;
+    links.allowed = false;
+
+    expect(await createPost(null, linked())).toEqual({ ok: false, error: "no links yet" });
+    expect(holder.client.calls).toHaveLength(0);
+  });
+
+  it("refuses a reply with a link the same way", async () => {
+    viewer.current = SIGNED_IN;
+    links.allowed = false;
+
+    const data = new FormData();
+    data.set("postId", UUID);
+    data.set("body", "see https://example.com/thing");
+    data.set("spoilerLevel", "0");
+
+    expect(await createReply(null, data)).toMatchObject({ ok: false, error: "no links yet" });
+    expect(holder.client.calls).toHaveLength(0);
+  });
+
+  it("does not consult the gate at all for a post with no link in it", async () => {
+    viewer.current = SIGNED_IN;
+    links.allowed = false;
+    holder.client = createFakeClient({ tables: { posts: { data: { id: UUID }, error: null } } });
+
+    // The body has no link, so the privilege never comes up.
+    expect(await captureRedirect(() => createPost(null, validPost()))).toBe(`/p/${UUID}`);
+  });
+
+  it("catches a link hidden in the title, not just the body", async () => {
+    viewer.current = SIGNED_IN;
+    links.allowed = false;
+
+    const data = validPost({ title: "Look at https://example.com now" });
+    expect(await createPost(null, data)).toMatchObject({ ok: false });
+  });
+});
+
+describe("the spam filter on the composers", () => {
+  it("saves the post and then hides it, rather than refusing", async () => {
+    viewer.current = SIGNED_IN;
+    spam.verdict = { spam: true, rule: "blocked_domain", note: "Blocked domain: bit.ly" };
+    holder.client = createFakeClient({ tables: { posts: { data: { id: UUID }, error: null } } });
+
+    // The author is redirected to their post as normal. It is hidden and reported.
+    expect(await captureRedirect(() => createPost(null, validPost()))).toBe(`/p/${UUID}`);
+    expect(spam.quarantined).toEqual([["post", UUID, "user-1", "Blocked domain: bit.ly"]]);
+  });
+
+  it("quarantines a reply the same way", async () => {
+    viewer.current = SIGNED_IN;
+    spam.verdict = { spam: true, rule: "duplicate", note: "Duplicate body posted within 60 minutes" };
+    holder.client = createFakeClient({ tables: { replies: { data: { id: UUID }, error: null } } });
+
+    const data = new FormData();
+    data.set("postId", UUID);
+    data.set("body", "The same paragraph again.");
+    data.set("spoilerLevel", "0");
+
+    expect(await createReply(null, data)).toEqual({ ok: true, data: undefined });
+    expect(spam.quarantined).toEqual([["reply", UUID, "user-1", "Duplicate body posted within 60 minutes"]]);
+  });
+
+  it("leaves a clean post alone", async () => {
+    viewer.current = SIGNED_IN;
+    holder.client = createFakeClient({ tables: { posts: { data: { id: UUID }, error: null } } });
+
+    await captureRedirect(() => createPost(null, validPost()));
+    expect(spam.quarantined).toHaveLength(0);
+  });
+
+  it("runs on an edit too, since that is a second chance to smuggle the same thing in", async () => {
+    viewer.current = SIGNED_IN;
+    spam.verdict = { spam: true, rule: "blocked_phrase", note: "Blocked phrase: free nitro" };
+
+    await captureRedirect(() =>
+      editPost(null, validPost({ postId: UUID, title: "A title long enough to pass", body: "free nitro here" })),
+    );
+
+    expect(spam.quarantined).toEqual([["post", UUID, "user-1", "Blocked phrase: free nitro"]]);
+  });
+});
+
+describe("the block lists", () => {
+  it("refuse a non admin", async () => {
+    viewer.current = SIGNED_IN;
+    expect(await editBlockList(null, form({ list: "domain", action: "add", value: "evil.test" }))).toEqual({
+      ok: false,
+      error: "That action is not available to you.",
+    });
+  });
+
+  it("store a pasted URL as a bare host", async () => {
+    viewer.current = ADMIN;
+    adminHolder.client = createFakeClient();
+
+    await editBlockList(null, form({ list: "domain", action: "add", value: "https://WWW.Evil.test/spam?x=1" }));
+
+    const insert = adminHolder.client.calls.find((call) => call.method === "insert");
+    expect(insert?.args[0]).toMatchObject({ domain: "evil.test" });
+  });
+
+  it("lowercase a phrase, because that is what the filter matches against", async () => {
+    viewer.current = ADMIN;
+    adminHolder.client = createFakeClient();
+
+    await editBlockList(null, form({ list: "phrase", action: "add", value: "  FREE Nitro  " }));
+
+    const insert = adminHolder.client.calls.find((call) => call.method === "insert");
+    expect(insert?.args[0]).toMatchObject({ phrase: "free nitro" });
+  });
+
+  it("say so when an entry is already on the list", async () => {
+    viewer.current = ADMIN;
+    adminHolder.client = createFakeClient({ tables: { blocked_domains: { data: null, error: { message: "dupe", code: "23505" } } } });
+
+    expect(await editBlockList(null, form({ list: "domain", action: "add", value: "bit.ly" }))).toEqual({
+      ok: false,
+      error: "That is already on the list.",
+    });
+  });
+
+  it("write an audit row for both directions", async () => {
+    viewer.current = ADMIN;
+
+    adminHolder.client = createFakeClient();
+    await editBlockList(null, form({ list: "phrase", action: "add", value: "free money" }));
+    expect(adminHolder.client.calls.find((call) => call.method === "insert" && (call.args[0] as { action?: string }).action === "block_add")).toBeTruthy();
+
+    adminHolder.client = createFakeClient();
+    await editBlockList(null, form({ list: "phrase", action: "remove", value: "free money" }));
+    const audit = adminHolder.client.calls.find((call) => call.method === "insert");
+    expect(audit?.args[0]).toMatchObject({ action: "block_remove", target_type: "phrase" });
+  });
+});
+
+describe("admin profile edits", () => {
+  it("refuse a non admin", async () => {
+    viewer.current = SIGNED_IN;
+    expect(await adminEditProfile(null, form({ userId: OTHER_USER, username: "newname" }))).toMatchObject({
+      ok: false,
+    });
+  });
+
+  it("rename an account and audit it", async () => {
+    viewer.current = ADMIN;
+    adminHolder.client = createFakeClient();
+
+    expect(await adminEditProfile(null, form({ userId: OTHER_USER, username: "NewName" }))).toEqual({
+      ok: true,
+      data: undefined,
+    });
+
+    const update = adminHolder.client.calls.find((call) => call.method === "update");
+    expect(update?.args[0]).toEqual({ username: "newname" });
+
+    const audit = adminHolder.client.calls.find((call) => call.method === "insert");
+    expect(audit?.args[0]).toMatchObject({ action: "rename_user", target_type: "user", target_id: OTHER_USER });
+  });
+
+  it("clear a bio and audit that separately", async () => {
+    viewer.current = ADMIN;
+    adminHolder.client = createFakeClient();
+
+    await adminEditProfile(null, form({ userId: OTHER_USER, clearBio: "true" }));
+
+    const update = adminHolder.client.calls.find((call) => call.method === "update");
+    expect(update?.args[0]).toEqual({ bio: null });
+
+    const audit = adminHolder.client.calls.find((call) => call.method === "insert");
+    expect(audit?.args[0]).toMatchObject({ action: "clear_bio" });
+  });
+
+  it("refuse a request that changes nothing", async () => {
+    viewer.current = ADMIN;
+    adminHolder.client = createFakeClient();
+
+    expect(await adminEditProfile(null, form({ userId: OTHER_USER }))).toEqual({
+      ok: false,
+      error: "Nothing to change.",
+    });
+    expect(adminHolder.client.calls).toHaveLength(0);
+  });
+
+  it("refuse a username that breaks the rules", async () => {
+    viewer.current = ADMIN;
+    expect(await adminEditProfile(null, form({ userId: OTHER_USER, username: "no" }))).toMatchObject({ ok: false });
   });
 });

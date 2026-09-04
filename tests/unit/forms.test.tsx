@@ -138,7 +138,7 @@ describe("PostComposer", () => {
 describe("ProfileForm", () => {
   it("confirms a save and shows a taken username", async () => {
     saveProfile.mockResolvedValue({ ok: true, data: undefined });
-    const { unmount } = render(<ProfileForm username="mara" displayName="Mara" />);
+    const { unmount } = render(<ProfileForm username="mara" displayName="Mara" bio={null} usernameChangedAt={null} />);
     expect(screen.getByLabelText("Username")).toHaveValue("mara");
 
     await userEvent.click(screen.getByRole("button", { name: "Save profile" }));
@@ -146,7 +146,7 @@ describe("ProfileForm", () => {
     unmount();
 
     saveProfile.mockResolvedValue({ ok: false, error: "That username is taken." });
-    render(<ProfileForm username="mara" displayName={null} />);
+    render(<ProfileForm username="mara" displayName={null} bio={null} usernameChangedAt={null} />);
     await userEvent.click(screen.getByRole("button", { name: "Save profile" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("That username is taken.");
   });

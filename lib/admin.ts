@@ -15,8 +15,20 @@ export async function requireAdmin(): Promise<Viewer | null> {
   return viewer?.isAdmin ? viewer : null;
 }
 
-export type AdminAction = "hide" | "unhide" | "delete" | "dismiss" | "ban" | "unban" | "delete_account";
-export type AdminTarget = "post" | "reply" | "report" | "user";
+export type AdminAction =
+  | "hide"
+  | "unhide"
+  | "delete"
+  | "dismiss"
+  | "ban"
+  | "unban"
+  | "delete_account"
+  | "block_add"
+  | "block_remove"
+  | "rename_user"
+  | "clear_bio";
+
+export type AdminTarget = "post" | "reply" | "report" | "user" | "domain" | "phrase";
 
 /**
  * One row per thing an admin did.

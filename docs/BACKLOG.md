@@ -96,6 +96,10 @@ Kept here briefly so a reader does not re-open a decision that has already been 
 
 Migration `0012`. Admin moved from `ADMIN_USER_IDS` onto `profiles.is_admin`, bans became `banned_at` enforced by row level security rather than by the UI, `admin_actions` records every moderator action, and the per IP signup limit proposed here was built as `public.record_signup_attempt`. Cloudflare Turnstile is wired into signup, sign in, and both composers, switched off pending keys.
 
+### Outbound links, spam, and identity, September 2026
+
+Migration `0013`. Every user authored link is nofollow ugc noopener and opens in a new tab, new accounts cannot post links until they are a day old or have earned an accepted answer or 3 upvotes, and a three rule spam filter hides and reports rather than refusing. Usernames became the public identity with a 30 day change cooldown, profiles gained a bio, and email is no longer changeable by anyone. Admins can edit both spam lists, rename an account, and clear a bio, all audited.
+
 ### Go live, September 3, 2026
 
 - **Domain and DNS.** `askgta6.com` registered at Namecheap, DNS on BasicDNS under Advanced DNS, A record on `@` and CNAME on `www` pointing at Vercel. Both hostnames added to the Vercel project, www redirects to the apex with a 308, apex is canonical. `NEXT_PUBLIC_SITE_URL` set to `https://askgta6.com` and redeployed. Records and targets are in [system/infrastructure.md](system/infrastructure.md).

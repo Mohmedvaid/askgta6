@@ -133,6 +133,25 @@ Noindex is the root layout default and indexable pages opt in, because forgettin
 - **JSON-LD**, from `lib/structured-data.ts`, rendered by `components/seo/JsonLd`. A question with an accepted answer both reader and crawler can see becomes a `QAPage`; everything else is a `DiscussionForumPosting` with `interactionStatistic` counters for votes and replies. Public groups get a `CollectionPage`. It returns null unless the page is indexable, and no branch can carry a gated body because the gate deleted it before the page saw it.
 - **RSS** at `/feed.xml` and `/g/[slug]/feed.xml`. Titles, links, authors, dates. No item has a description and nothing carries a body: a feed reader has no shield, so the query takes level 0 rows only and never selects a body. Both are empty while indexing is off, the way the sitemap is, and the `link rel=alternate` that advertises them only appears when the flag is on.
 
+## Outbound links and spam
+
+- **Every user authored link carries `rel="nofollow ugc noopener"` and `target="_blank"`.** The rel string lives once, in `lib/links.ts`, and `lib/markdown.ts` is the only thing that emits an anchor. A forum with an open compose box is worth nothing to a link seller, and a target page never gets control of the tab it opened from.
+- **Links stay links.** Nothing unfurls, embeds, or fetches a URL, so a posted address cannot become media on the page. There are no image uploads in posts either; avatars are the only thing stored.
+- **Link privileges.** An account under 24 hours old with no accepted answer and fewer than 3 upvotes received cannot include a link, in a post or a reply, in the body or the title. Either bar clears it, not both: an answer accepted an hour after signing up has demonstrated more than a day of silence. Admins are exempt, because moderating means linking to things. `lib/link-privilege.ts`, counted by `public.link_privilege_stats`.
+- **The spam filter**, `lib/spam.ts`, runs on create and edit of posts and replies. Three rules: a blocked domain (subdomains count), a blocked phrase against the normalized body, and an identical normalized body from any account inside 60 minutes.
+
+  **A match does not refuse.** The item is saved, then hidden, and a report is filed against it with a note naming the rule, so it lands in the admin queue. A refusal tells a spammer exactly which word to change, and leaves no record of what was caught, so nobody can tell an over eager rule from an effective one.
+
+  Both lists are tables, seeded in migration `0013` with URL shorteners, paste sites, and the usual scam bait, and editable from the admin content screen with an audit row per change.
+
+## Identity
+
+- **The username is the identity**, on cards, on replies, in the profile URL, and in structured data. The display name is optional and secondary; it shows next to a username, never instead of one.
+- **A username changes once every 30 days**, 3 to 20 characters of lowercase letters, digits, and underscores. The cooldown is in the action and in a database trigger, because the action is not the only thing that can reach a profile row. The old name is freed immediately: reserving it would be a squatting mechanism.
+- Moving off the generated `player_xxxxxx` name neither spends the cooldown nor starts the clock, so a name typed in a hurry at onboarding gets one free correction.
+- **Email cannot be changed by anybody.** There is no field in settings and no action passes one to `updateUser`, which `tests/unit/profile-rules.test.ts` asserts by scanning the source. Changing the address on an account is how a stolen session becomes a stolen account.
+- Profiles carry a bio of up to 200 characters, capped by a check constraint as well as by the schema. Admins can rename any account and clear any bio from the users screen, both audited.
+
 ## Moderation
 
 - Anyone signed in can report a post or reply. Reasons: `spam`, `leak`, `harassment`, `wrong_spoiler_level`, `spoiler_in_title`, `other`. One report per person per item, enforced by a unique constraint.

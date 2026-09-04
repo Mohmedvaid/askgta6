@@ -162,10 +162,33 @@ export async function listReportedItems(): Promise<ReportedItem[]> {
     });
 }
 
+export type BlockEntry = { id: string; value: string; note: string | null };
+
+export async function listBlockedDomains(): Promise<BlockEntry[]> {
+  const admin = createSupabaseAdminClient();
+  const { data } = await admin.from("blocked_domains").select("id, domain, note").order("domain");
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    id: String(row.id),
+    value: String(row.domain ?? ""),
+    note: (row.note as string) ?? null,
+  }));
+}
+
+export async function listBlockedPhrases(): Promise<BlockEntry[]> {
+  const admin = createSupabaseAdminClient();
+  const { data } = await admin.from("blocked_phrases").select("id, phrase, note").order("phrase");
+  return ((data ?? []) as Record<string, unknown>[]).map((row) => ({
+    id: String(row.id),
+    value: String(row.phrase ?? ""),
+    note: (row.note as string) ?? null,
+  }));
+}
+
 export type AdminUser = {
   id: string;
   username: string;
   displayName: string | null;
+  bio: string | null;
   email: string | null;
   createdAt: string;
   isAdmin: boolean;
@@ -195,7 +218,7 @@ export async function findUsers(query: string): Promise<AdminUser[]> {
 
   let builder = admin
     .from("profiles")
-    .select("id, username, display_name, created_at, is_admin, banned_at, banned_reason")
+    .select("id, username, display_name, bio, created_at, is_admin, banned_at, banned_reason")
     .order("created_at", { ascending: false })
     .limit(50);
 
@@ -241,6 +264,7 @@ export async function findUsers(query: string): Promise<AdminUser[]> {
       id,
       username: String(profile.username ?? ""),
       displayName: (profile.display_name as string) ?? null,
+      bio: (profile.bio as string) ?? null,
       email: emails.get(id) ?? null,
       createdAt: String(profile.created_at ?? ""),
       isAdmin: profile.is_admin === true,

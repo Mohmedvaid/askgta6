@@ -42,6 +42,11 @@ that nobody can grant themselves `is_admin` or lift their own ban, and that the
 audit table takes no client writes. Those are the guarantees the admin dashboard
 depends on, and none of them is testable from the UI.
 
+It also holds the username cooldown, the bio length constraint, the spam list
+policies, and `link_privilege_stats`, all for the same reason: a trigger and a
+constraint are reachable by anything holding a session, not only by the action that
+normally writes them.
+
 What it asserts, among other things: private group posts are invisible to non members through select, through ranked search, and through counts; clients cannot write `vote_count`, `reply_count`, `is_hidden`, or `accepted_reply_id`; report auto hide fires at exactly five distinct reporters and not at four; the rate limits hold; a reader can turn their own spoiler shield on and gets zero rows touching anyone else's.
 
 ## End to end

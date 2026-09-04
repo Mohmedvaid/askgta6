@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Empty } from "@/components/Empty";
 import { BanControl } from "@/components/admin/BanControl";
 import { DeleteAccountControl } from "@/components/admin/DeleteAccountControl";
+import { ProfileControl } from "@/components/admin/ProfileControl";
 import { findUsers } from "@/lib/queries/admin";
 import { relativeTime } from "@/lib/relative-time";
 import { NOINDEX } from "@/lib/indexing";
@@ -85,9 +86,12 @@ export default async function AdminUsersPage({ searchParams }: { searchParams: S
                 </div>
               </dl>
 
+              {user.bio ? <p className="mt-2 text-sm text-text-secondary">{user.bio}</p> : null}
               {user.bannedReason ? (
                 <p className="mt-2 text-xs text-text-muted">Reason: {user.bannedReason}</p>
               ) : null}
+
+              <ProfileControl userId={user.id} username={user.username} hasBio={Boolean(user.bio)} />
 
               {user.isAdmin ? (
                 <p className="mt-3 text-xs text-text-muted">

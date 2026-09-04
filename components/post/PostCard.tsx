@@ -43,7 +43,7 @@ export function PostCard({ post }: { post: GatedPost }) {
 
       <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-text-muted">
         <Link href={`/u/${post.author.username}`} className="font-medium text-text-secondary">
-          {post.author.display_name ?? post.author.username}
+          {post.author.username}
         </Link>
         <span>{relativeTime(post.created_at)}</span>
         <span>

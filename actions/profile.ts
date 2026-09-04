@@ -8,7 +8,19 @@ import { firstIssue, profileSchema, shieldSchema, themeSchema, type ActionResult
 import { THEME_COOKIE } from "@/lib/theme/cookie";
 import { writeAnonymousShield } from "@/lib/anonymous-progress";
 import { clampProgress } from "@/lib/spoilers";
+import { usernameCooldownEndsAt, usernameCooldownError } from "@/lib/profile-rules";
+import { isPlaceholderUsername } from "@/lib/username";
 
+/**
+ * Username, display name, and bio. **Never email.**
+ *
+ * There is no email field on the form and none is read here, so nothing this action
+ * writes can reach auth.users. Changing the address on an account is how a stolen
+ * session becomes a stolen account, and there is no self service path to it: an
+ * account recovers through the password reset flow, which needs the original inbox.
+ * tests/unit/profile-email.test.ts asserts no action anywhere calls updateUser with
+ * an email.
+ */
 export async function saveProfile(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const viewer = await getViewer();
   if (!viewer) return { ok: false, error: "Sign in to edit your profile." };
@@ -16,23 +28,40 @@ export async function saveProfile(_state: ActionResult | null, formData: FormDat
   const parsed = profileSchema.safeParse({
     username: String(formData.get("username") ?? ""),
     displayName: formData.get("displayName") ? String(formData.get("displayName")) : undefined,
+    bio: formData.get("bio") ? String(formData.get("bio")) : undefined,
   });
   if (!parsed.success) return { ok: false, error: firstIssue(parsed.error) };
+
+  const changingName = parsed.data.username !== viewer.username;
+
+  // The generated player_xxxxxx name is not a choice anybody made, so the first
+  // change away from it does not spend the cooldown. The database trigger agrees.
+  if (changingName && !isPlaceholderUsername(viewer.username)) {
+    const endsAt = usernameCooldownEndsAt(viewer.usernameChangedAt);
+    if (endsAt) return { ok: false, error: usernameCooldownError(endsAt) };
+  }
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase
     .from("profiles")
-    .update({ username: parsed.data.username, display_name: parsed.data.displayName ?? null })
+    .update({
+      username: parsed.data.username,
+      display_name: parsed.data.displayName ?? null,
+      bio: parsed.data.bio ?? null,
+    })
     .eq("id", viewer.userId);
 
   if (error) {
-    return {
-      ok: false,
-      error: error.code === "23505" ? "That username is taken." : "Your profile could not be saved.",
-    };
+    if (error.code === "23505") return { ok: false, error: "That username is taken." };
+    // The trigger raises this when the action's own check was bypassed.
+    if (error.message.includes("username changed too recently")) {
+      return { ok: false, error: usernameCooldownError(new Date(Date.now() + 24 * 60 * 60 * 1000)) };
+    }
+    return { ok: false, error: "Your profile could not be saved." };
   }
 
   revalidatePath("/settings");
+  revalidatePath(`/u/${viewer.username}`);
   revalidatePath(`/u/${parsed.data.username}`);
   return { ok: true, data: undefined };
 }
