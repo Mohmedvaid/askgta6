@@ -58,12 +58,12 @@ pnpm exec supabase db push \
 ## Seed, and where the credentials land
 
 ```bash
-pnpm seed
+pnpm seed:import
 ```
 
-Idempotent: four accounts, two public groups, one private group with a printed invite code, roughly 180 posts, 450 replies, votes, and accepted answers. Running it twice does not duplicate anything.
+Imports `supabase/seed/seed.json`: 36 accounts, 420 posts, 2100 replies, accepted answers, and real vote rows. Idempotent, so running it twice updates rather than duplicating, and resumable with `--from=<phase>` if it fails partway. Full procedure, including how to append content later, is in [../app/seed-content.md](../app/seed-content.md).
 
-Every account gets a **fresh random password per run**. They are printed once to the console and written to `seed-credentials.local.json` in the repository root, mode 600, gitignored. Re-running rotates them, so an old copy stops working. The file never enters git.
+Every account gets a **fresh random password per run**, written to `seed-credentials.local.json` in the repository root, mode 600, gitignored. Re-running rotates them, so an old copy stops working. The file never enters git.
 
 Seed content is drawn only from Trailer 1, Trailer 2, and the store listings. It fabricates no story details.
 
@@ -110,7 +110,7 @@ Do these in order. Each one takes effect somewhere different.
 
 **Vercel tokens.** Vercel account settings, **Tokens**. Revoke and reissue.
 
-**Seed account passwords.** Run `pnpm seed` again, which rotates all four, or delete the accounts outright in **Authentication, Users**.
+**Seed account passwords.** Run `pnpm seed:import` again, which rotates every one of them, or delete the accounts outright in **Authentication, Users**.
 
 **Anything that touched a Claude Code cloud environment.** Treat as exposed and rotate. That item is on the backlog with a deadline.
 

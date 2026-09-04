@@ -39,7 +39,7 @@ lib/
 actions/           server actions, one file per domain
 supabase/
   migrations/      numbered SQL, applied in filename order
-  seed/            pnpm seed
+  seed/            seed.json, its schema, and the importer
 tests/
   unit/            pure helpers, schemas, component states, action outcomes
   db/              pglite harness and the row level security suite

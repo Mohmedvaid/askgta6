@@ -12,6 +12,7 @@ AskGTA6 is a spoiler safe community for Grand Theft Auto VI, which releases Nove
 | [system/architecture.md](system/architecture.md) | How it works. Stack, repo layout, request flow, auth, the spoiler shield, indexing, moderation, rate limits, storage. |
 | [system/runbook.md](system/runbook.md) | How to operate it. Run locally, add a migration, seed, make someone an admin, rotate secrets, read prod logs, debug auth email and redirects, redeploy, roll back, back up and restore. |
 | [app/product.md](app/product.md) | What it is and what it deliberately is not. Shield rules, spoiler levels, posting rules, groups. |
+| [app/seed-content.md](app/seed-content.md) | The seeded forum: what is in seed.json, how to import it, how to add more later. |
 | [app/testing.md](app/testing.md) | The three test layers, how to run each, the pglite harness, the coverage threshold. |
 | [BACKLOG.md](BACKLOG.md) | What has to happen before launch, and what is parked for later. |
 | [design/README.md](design/README.md) | Three alternative theme directions with screenshots, none of them live. Pick one by looking. |

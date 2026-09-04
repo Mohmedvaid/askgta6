@@ -10,7 +10,7 @@ Fan made and unofficial. Not affiliated with Rockstar Games or Take-Two Interact
 pnpm install
 cp .env.example .env.local   # fill in your Supabase keys, see docs/system/runbook.md
 pnpm supabase:push           # applies supabase/migrations to your project
-pnpm seed                    # about 180 posts, 450 replies, 4 accounts, 3 groups
+pnpm seed:import             # 36 accounts, 420 posts, 2100 replies, real votes
 pnpm dev
 ```
 
@@ -28,7 +28,7 @@ The migrations are already applied to the shared project, so `supabase:push` and
 | `pnpm test` | Unit and component tests, fails under 80 percent lines and branches |
 | `pnpm test:db` | pglite backed migration, trigger, and row level security tests |
 | `pnpm test:e2e` | Playwright smoke suite against `pnpm build && pnpm start` |
-| `pnpm seed` | Idempotent seed against `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Writes fresh account passwords to the gitignored `seed-credentials.local.json`. |
+| `pnpm seed:import` | Imports `supabase/seed/seed.json`. Idempotent, resumable, needs `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`. Writes fresh account passwords to the gitignored `seed-credentials.local.json`. See [docs/app/seed-content.md](docs/app/seed-content.md). |
 | `pnpm supabase:push` | `supabase db push` |
 
 The database tests need no Docker. They boot Postgres in WebAssembly through pglite, apply a small Supabase shim, then apply every migration, so row level security is exercised the way Supabase exercises it.
@@ -70,7 +70,7 @@ lib/
 actions/           server actions, one file per domain
 supabase/
   migrations/      numbered SQL, runs on a fresh project and inside pglite
-  seed/            pnpm seed
+  seed/            seed.json and the importer behind pnpm seed:import
 tests/
   unit/            pure helpers, schemas, component states, action outcomes
   db/              pglite harness and the RLS suite

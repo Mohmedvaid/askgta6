@@ -1,4 +1,11 @@
-# Private persona table (not shipped)
+# Seed personas
+
+The voices behind the accounts in `supabase/seed/seed.json`. Documentation only:
+no column holds any of this, and the importer skips the `persona` field entirely.
+It is here so whoever writes the next batch of content can keep an account
+sounding like itself.
+
+Generated outside this repository alongside the content it describes.
 
 | user | tier | posts | replies | age | platform | history | cares about | style | topics | never |
 |---|---|---|---|---|---|---|---|---|---|---|

@@ -19,7 +19,9 @@ Both were handled outside a password manager on September 3, 2026 while auth ema
 
 ### Delete or lock the seed accounts, decide what seed content stays
 
-Four seed accounts exist with rotating random passwords. Before launch either delete them in **Authentication, Users** or lock them. Then decide what happens to roughly 180 seed posts: a forum with visible seed content on day one looks either lived in or fake, depending on how good it is. Read a sample and choose. `supabase/seed/content.ts` is where it comes from.
+The imported seed accounts have rotating random passwords, and there are also several hundred synthetic voter accounts that hold no content. Before launch either delete them in **Authentication, Users** or lock them.
+
+Then decide what happens to 420 seed posts and 2100 replies: a forum with visible seed content on day one looks either lived in or fake, depending on how good it is. Read a sample and choose. [app/seed-content.md](app/seed-content.md) says where it comes from and how to remove it.
 
 ### Real brand
 
