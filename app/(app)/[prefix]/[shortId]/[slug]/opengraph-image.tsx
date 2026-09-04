@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { getPost } from "@/lib/queries/posts";
+import { getPostByShortId } from "@/lib/queries/posts";
 import { TOPIC_LABELS } from "@/lib/topics";
 import { OG_PALETTE } from "@/lib/theme/og";
 
@@ -15,9 +15,9 @@ export const alt = "AskGTA6";
  * CSS and reads no custom properties. It is the same two knocked out lines the
  * square mark carries, at three times the size.
  */
-export default async function OpengraphImage({ params }: { params: Promise<{ postId: string }> }) {
-  const { postId } = await params;
-  const post = await getPost(postId, 0);
+export default async function OpengraphImage({ params }: { params: Promise<{ shortId: string }> }) {
+  const { shortId } = await params;
+  const post = await getPostByShortId(shortId, 0);
 
   const heading = post?.title ?? "A thread on AskGTA6";
   const topic = post ? TOPIC_LABELS[post.topic] : "Community";

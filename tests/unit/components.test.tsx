@@ -44,6 +44,8 @@ const author = { username: "mara", display_name: "Mara", avatar_path: null };
 const visiblePost = {
   hidden: false as const,
   id: "post-1",
+  short_id: "k3m91xqz",
+  slug: "how-big-is-leonida",
   author_id: "aaaa",
   group_id: null,
   topic: "map" as const,
@@ -63,6 +65,8 @@ const visiblePost = {
 const hiddenPost: GatedPost = {
   hidden: true,
   id: "post-2",
+  short_id: "p7w2adc4",
+  slug: "a-late-game-thread-about-the-ending",
   title: "A late game thread about the ending",
   author_id: "aaaa",
   group_id: null,

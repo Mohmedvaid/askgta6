@@ -2,8 +2,22 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { escapeXml, feedResponse, renderFeed } from "@/lib/rss";
 
 const ITEMS = [
-  { id: "post-1", title: "How big is Leonida", author: "Vic", createdAt: "2026-02-01T10:00:00.000Z" },
-  { id: "post-2", title: "Radio stations & the <best> one", author: "mona", createdAt: "2026-01-30T08:30:00.000Z" },
+  {
+    short_id: "k3m91xqz",
+    slug: "how-big-is-leonida",
+    kind: "question" as const,
+    title: "How big is Leonida",
+    author: "Vic",
+    createdAt: "2026-02-01T10:00:00.000Z",
+  },
+  {
+    short_id: "p7w2adc4",
+    slug: "radio-stations-the-best-one",
+    kind: "discussion" as const,
+    title: "Radio stations & the <best> one",
+    author: "mona",
+    createdAt: "2026-01-30T08:30:00.000Z",
+  },
 ];
 
 beforeEach(() => {
@@ -38,8 +52,8 @@ describe("renderFeed", () => {
     const xml = feed();
 
     expect(xml).toContain("<title>How big is Leonida</title>");
-    expect(xml).toContain("<link>https://askgta6.test/p/post-1</link>");
-    expect(xml).toContain('<guid isPermaLink="true">https://askgta6.test/p/post-1</guid>');
+    expect(xml).toContain("<link>https://askgta6.test/ask/k3m91xqz/how-big-is-leonida</link>");
+    expect(xml).toContain('<guid isPermaLink="true">https://askgta6.test/ask/k3m91xqz/how-big-is-leonida</guid>');
     expect(xml).toContain("<dc:creator>Vic</dc:creator>");
     expect(xml).toContain("<pubDate>Sun, 01 Feb 2026 10:00:00 GMT</pubDate>");
     expect(xml.match(/<item>/g)).toHaveLength(2);
@@ -81,7 +95,9 @@ describe("renderFeed", () => {
       title: "t",
       description: "d",
       path: "/feed.xml",
-      items: [{ id: "p", title: "t", author: "a", createdAt: "not a date" }],
+      items: [
+        { short_id: "aaaaaaaa", slug: "t", kind: "question" as const, title: "t", author: "a", createdAt: "not a date" },
+      ],
     });
 
     expect(xml).toContain("<pubDate>Thu, 01 Jan 1970 00:00:00 GMT</pubDate>");

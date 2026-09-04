@@ -11,7 +11,9 @@ const { GET: siteFeed } = await import("@/app/feed.xml/route");
 const { GET: groupFeed } = await import("@/app/(app)/g/[slug]/feed.xml/route");
 
 const POST_ROW = {
-  id: "post-1",
+  short_id: "k3m91xqz",
+  slug: "how-big-is-leonida",
+  kind: "question",
   title: "How big is Leonida",
   created_at: "2026-02-01T10:00:00.000Z",
   author: [{ username: "vic", display_name: "Vic" }],
@@ -54,7 +56,7 @@ describe("/feed.xml", () => {
     const xml = await (await siteFeed()).text();
 
     expect(xml).toContain("<title>How big is Leonida</title>");
-    expect(xml).toContain("<link>https://askgta6.test/p/post-1</link>");
+    expect(xml).toContain("<link>https://askgta6.test/ask/k3m91xqz/how-big-is-leonida</link>");
     expect(xml).toContain("<dc:creator>Vic</dc:creator>");
   });
 

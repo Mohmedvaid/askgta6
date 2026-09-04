@@ -5,6 +5,7 @@ import { RevealRegion } from "./RevealRegion";
 import { excerpt } from "@/lib/markdown";
 import { relativeTime } from "@/lib/relative-time";
 import type { GatedPost } from "@/lib/queries/posts";
+import { postPath } from "@/lib/post-url";
 
 /**
  * One feed card. The title is always here, whatever the level, so a reader can
@@ -28,7 +29,7 @@ export function PostCard({ post }: { post: GatedPost }) {
       </div>
 
       <div className="mt-3">
-        <Link href={`/p/${post.id}`} className="group block">
+        <Link href={postPath(post)} className="group block">
           <h2 className="font-display text-xl leading-snug font-semibold text-text-primary group-hover:text-accent">
             {post.title}
           </h2>
@@ -49,7 +50,7 @@ export function PostCard({ post }: { post: GatedPost }) {
         <span>
           {post.vote_count} {post.vote_count === 1 ? "vote" : "votes"}
         </span>
-        <Link href={`/p/${post.id}`}>
+        <Link href={postPath(post)}>
           {post.reply_count} {post.reply_count === 1 ? "reply" : "replies"}
         </Link>
         {post.accepted_reply_id ? <span className="font-semibold text-success">Answered</span> : null}

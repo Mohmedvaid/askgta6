@@ -3,11 +3,12 @@ import { createSupabasePublicClient } from "../supabase/public";
 import { applySpoilerGate, applySpoilerGateAll, NO_GATING, type Gated, type ViewerProgress } from "../spoilers";
 import { decodeCursor, encodeCursor } from "../cursor";
 import type { PostKind, Topic } from "../topics";
+import type { PostUrlParts } from "../post-url";
 
 export const PAGE_SIZE = 20;
 
 const POST_COLUMNS = `
-  id, author_id, group_id, topic, kind, title, body, spoiler_level,
+  id, short_id, slug, author_id, group_id, topic, kind, title, body, spoiler_level,
   vote_count, reply_count, accepted_reply_id, is_hidden, created_at,
   author:profiles!posts_author_id_fkey(username, display_name, avatar_path),
   group:groups(slug, name, visibility)
@@ -17,6 +18,8 @@ export type PostAuthor = { username: string; display_name: string | null; avatar
 
 export type PostRow = {
   id: string;
+  short_id: string;
+  slug: string;
   author_id: string;
   group_id: string | null;
   topic: Topic;
@@ -136,16 +139,45 @@ export async function listPosts(query: FeedQuery, viewerProgress: ViewerProgress
   };
 }
 
-/** One post, gated. Returns null when the viewer may not see the row at all. */
-export async function getPost(postId: string, viewerProgress: ViewerProgress): Promise<GatedPost | null> {
+/**
+ * One post, gated, by the short id in its URL. Returns null when the viewer may
+ * not see the row at all.
+ *
+ * The slug in the path is never part of the lookup, so a stale one costs a
+ * redirect rather than a 404. Nothing reads a post by its uuid any more: the
+ * uuid is what votes, reports, and replies hang off, not what addresses a page.
+ */
+export async function getPostByShortId(shortId: string, viewerProgress: ViewerProgress): Promise<GatedPost | null> {
   const supabase = await createSupabaseServerClient();
-  const { data, error } = await supabase.from("posts").select(POST_COLUMNS).eq("id", postId).maybeSingle();
+  const { data, error } = await supabase.from("posts").select(POST_COLUMNS).eq("short_id", shortId).maybeSingle();
 
   if (error || !data) return null;
   return applySpoilerGate(normalize(data as Record<string, unknown>), viewerProgress);
 }
 
-/** Ungated read for the author's own edit form and for reveal, both of which check ownership. */
+/** The url parts for a post held only by uuid, which is all the legacy /p route needs. */
+export async function getPostUrlParts(postId: string): Promise<PostUrlParts | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("posts")
+    .select("short_id, slug, kind")
+    .eq("id", postId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data as PostUrlParts;
+}
+
+/** Ungated read by short id, for the author's own edit form. */
+export async function getPostRawByShortId(shortId: string): Promise<PostRow | null> {
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase.from("posts").select(POST_COLUMNS).eq("short_id", shortId).maybeSingle();
+
+  if (error || !data) return null;
+  return normalize(data as Record<string, unknown>);
+}
+
+/** Ungated read by uuid, for reveal, which checks the item is revealable. */
 export async function getPostRaw(postId: string): Promise<PostRow | null> {
   const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.from("posts").select(POST_COLUMNS).eq("id", postId).maybeSingle();
@@ -156,7 +188,7 @@ export async function getPostRaw(postId: string): Promise<PostRow | null> {
 
 export const SYNDICATION_LIMIT = 50;
 
-export type SyndicatedPost = { id: string; title: string; author: string; createdAt: string };
+export type SyndicatedPost = PostUrlParts & { title: string; author: string; createdAt: string };
 
 /**
  * The rows an RSS feed carries: level 0 only, never hidden, never inside a private
@@ -169,7 +201,9 @@ export async function listSyndicatedPosts(groupId?: string): Promise<SyndicatedP
 
   let query = supabase
     .from("posts")
-    .select("id, title, created_at, author:profiles!posts_author_id_fkey(username, display_name), group:groups(visibility)")
+    .select(
+      "short_id, slug, kind, title, created_at, author:profiles!posts_author_id_fkey(username, display_name), group:groups(visibility)",
+    )
     .eq("is_hidden", false)
     .eq("spoiler_level", 0)
     .order("created_at", { ascending: false })
@@ -184,8 +218,7 @@ export async function listSyndicatedPosts(groupId?: string): Promise<SyndicatedP
     .map((row) => {
       const author = Array.isArray(row.author) ? row.author[0] : row.author;
       const group = Array.isArray(row.group) ? row.group[0] : row.group;
-      return { ...row, author, group } as {
-        id: string;
+      return { ...row, author, group } as PostUrlParts & {
         title: string;
         created_at: string;
         author: { username: string; display_name: string | null } | null;
@@ -194,7 +227,9 @@ export async function listSyndicatedPosts(groupId?: string): Promise<SyndicatedP
     })
     .filter((row) => !row.group || row.group.visibility === "public")
     .map((row) => ({
-      id: row.id,
+      short_id: row.short_id,
+      slug: row.slug,
+      kind: row.kind,
       title: row.title,
       author: row.author?.display_name || row.author?.username || "Someone",
       createdAt: row.created_at,

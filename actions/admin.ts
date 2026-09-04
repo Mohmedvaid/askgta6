@@ -13,6 +13,7 @@ import {
   type ActionResult,
 } from "@/lib/validation";
 import { hostOf } from "@/lib/links";
+import { legacyPostPath } from "@/lib/post-url";
 
 const REFUSED = "That action is not available to you.";
 
@@ -61,7 +62,7 @@ export async function moderate(_state: ActionResult | null, formData: FormData):
 
   await recordAdminAction(viewer.userId, action, targetType, targetId);
   refreshAdmin();
-  if (targetType === "post") revalidatePath(`/p/${targetId}`);
+  if (targetType === "post") revalidatePath(legacyPostPath(targetId));
   return { ok: true, data: undefined };
 }
 

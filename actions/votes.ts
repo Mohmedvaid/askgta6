@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getViewer } from "@/lib/viewer";
 import { firstIssue, voteSchema, type ActionResult } from "@/lib/validation";
+import { safePostPath } from "@/lib/post-url";
 
 export async function castVote(input: unknown): Promise<ActionResult<number>> {
   const viewer = await getViewer();
@@ -22,6 +23,11 @@ export async function castVote(input: unknown): Promise<ActionResult<number>> {
   if (error) return { ok: false, error: "That vote did not go through." };
 
   revalidatePath("/feed");
+  // A vote cast on a thread changes the count on that page too. The path travels
+  // with the request because the action holds the row's uuid, not its short id.
+  const path = safePostPath(parsed.data.path);
+  if (path) revalidatePath(path);
+
   return { ok: true, data: Number(data ?? 0) };
 }
 

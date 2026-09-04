@@ -9,9 +9,11 @@ type VoteControlProps = {
   count: number;
   myVote: number;
   layout?: "column" | "row";
+  /** The page to revalidate, when the vote is cast from a post page. */
+  path?: string;
 };
 
-export function VoteControl({ targetType, targetId, count, myVote, layout = "column" }: VoteControlProps) {
+export function VoteControl({ targetType, targetId, count, myVote, layout = "column", path }: VoteControlProps) {
   const [total, setTotal] = useState(count);
   const [mine, setMine] = useState(myVote);
   const [error, setError] = useState<string | null>(null);
@@ -20,7 +22,7 @@ export function VoteControl({ targetType, targetId, count, myVote, layout = "col
   const send = (value: number) => {
     const next = mine === value ? 0 : value;
     startTransition(async () => {
-      const result = await castVote({ targetType, targetId, value: next });
+      const result = await castVote({ targetType, targetId, value: next, path });
       if (result.ok) {
         setTotal(result.data);
         setMine(next);

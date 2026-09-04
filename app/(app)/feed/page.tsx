@@ -58,7 +58,7 @@ export default async function FeedPage({ searchParams }: { searchParams: SearchP
       {search ? null : (
         <div className="space-y-6">
           <FeedTabs basePath="/feed" active={tab} topic={topic} />
-          <TopicFilter basePath="/feed" active={topic} tab={tab} />
+          <TopicFilter basePath="/feed" active={topic} tab={tab} hubs />
         </div>
       )}
 

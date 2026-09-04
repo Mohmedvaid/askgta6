@@ -29,7 +29,7 @@ const {
   robotsFor,
 } = await import("@/lib/indexing");
 
-const { generateMetadata: postMetadata } = await import("@/app/(app)/p/[postId]/page");
+const { generateMetadata: postMetadata } = await import("@/app/(app)/[prefix]/[shortId]/[slug]/page");
 const { generateMetadata: groupMetadata } = await import("@/app/(app)/g/[slug]/page");
 const { generateMetadata: profileMetadata } = await import("@/app/(app)/u/[username]/page");
 const { generateMetadata: feedMetadata } = await import("@/app/(app)/feed/page");
@@ -43,12 +43,13 @@ const { metadata: newGroupPostMetadata } = await import("@/app/(app)/g/[slug]/ne
 const { metadata: joinMetadata } = await import("@/app/(app)/g/join/[code]/page");
 const { metadata: onboardingMetadata } = await import("@/app/(app)/onboarding/page");
 const { metadata: adminMetadata } = await import("@/app/(app)/admin/reports/page");
-const { metadata: editMetadata } = await import("@/app/(app)/p/[postId]/edit/page");
+const { metadata: editMetadata } = await import("@/app/(app)/[prefix]/[shortId]/[slug]/edit/page");
 
 const robotsModule = await import("@/app/robots");
 const sitemapModule = await import("@/app/sitemap");
 
 const UUID = "8b2f0f7a-1111-4222-8333-444455556666";
+const SHORT_ID = "k3m91xqz";
 const original = process.env.NEXT_PUBLIC_INDEXING;
 
 const author = { username: "mara", display_name: "Mara", avatar_path: null };
@@ -56,6 +57,8 @@ const author = { username: "mara", display_name: "Mara", avatar_path: null };
 function postRow(spoilerLevel: number) {
   return {
     id: UUID,
+    short_id: SHORT_ID,
+    slug: "how-big-is-the-leonida-map",
     author_id: "aaaa",
     group_id: null,
     topic: "map",
@@ -72,6 +75,16 @@ function postRow(spoilerLevel: number) {
     author: [author],
     group: null,
   };
+}
+
+/** The canonical path of the fixture post, which is what these params describe. */
+function postParams(overrides: Partial<{ prefix: string; shortId: string; slug: string }> = {}) {
+  return Promise.resolve({
+    prefix: "ask",
+    shortId: SHORT_ID,
+    slug: "how-big-is-the-leonida-map",
+    ...overrides,
+  });
 }
 
 function setFlag(value: "on" | "off") {
@@ -163,7 +176,7 @@ describe("page metadata with the flag off and on", () => {
   });
 
   it("makes a public post indexable only when the flag is on", async () => {
-    const params = { params: Promise.resolve({ postId: UUID }) };
+    const params = { params: postParams() };
     holder.client = createFakeClient({ tables: { posts: { data: postRow(0), error: null } } });
 
     setFlag("off");
@@ -171,7 +184,7 @@ describe("page metadata with the flag off and on", () => {
 
     setFlag("on");
     holder.client = createFakeClient({ tables: { posts: { data: postRow(0), error: null } } });
-    expect(robotsOf(await postMetadata({ params: Promise.resolve({ postId: UUID }) }))).toMatchObject({
+    expect(robotsOf(await postMetadata({ params: postParams() }))).toMatchObject({
       index: true,
       follow: true,
     });
@@ -236,7 +249,18 @@ describe("page metadata with the flag off and on", () => {
     setFlag("on");
     holder.client = createFakeClient({
       tables: {
-        posts: { data: [{ id: UUID, updated_at: "2026-06-01T12:00:00.000Z", group: null }], error: null },
+        posts: {
+          data: [
+            {
+              short_id: SHORT_ID,
+              slug: "how-big-is-the-leonida-map",
+              kind: "question",
+              updated_at: "2026-06-01T12:00:00.000Z",
+              group: null,
+            },
+          ],
+          error: null,
+        },
         groups: { data: [{ slug: "vice", created_at: "2026-01-01T00:00:00.000Z" }], error: null },
       },
     });
@@ -245,7 +269,8 @@ describe("page metadata with the flag off and on", () => {
     const urls = entries.map((entry) => entry.url);
     expect(urls).toContain("http://localhost:3000/feed");
     expect(urls).toContain("http://localhost:3000/g/vice");
-    expect(urls).toContain(`http://localhost:3000/p/${UUID}`);
+    expect(urls).toContain(`http://localhost:3000/ask/${SHORT_ID}/how-big-is-the-leonida-map`);
+    expect(urls).toContain("http://localhost:3000/topic/map");
   });
 
   it("keeps private group posts out of the sitemap", async () => {
@@ -254,8 +279,20 @@ describe("page metadata with the flag off and on", () => {
       tables: {
         posts: {
           data: [
-            { id: "public-post", updated_at: "2026-06-01T12:00:00.000Z", group: null },
-            { id: "private-post", updated_at: "2026-06-01T12:00:00.000Z", group: [{ visibility: "private" }] },
+            {
+              short_id: "aaaaaaaa",
+              slug: "public-post",
+              kind: "question",
+              updated_at: "2026-06-01T12:00:00.000Z",
+              group: null,
+            },
+            {
+              short_id: "bbbbbbbb",
+              slug: "private-post",
+              kind: "discussion",
+              updated_at: "2026-06-01T12:00:00.000Z",
+              group: [{ visibility: "private" }],
+            },
           ],
           error: null,
         },
@@ -264,8 +301,8 @@ describe("page metadata with the flag off and on", () => {
     });
 
     const urls = (await sitemapModule.default()).map((entry) => entry.url);
-    expect(urls).toContain("http://localhost:3000/p/public-post");
-    expect(urls).not.toContain("http://localhost:3000/p/private-post");
+    expect(urls).toContain("http://localhost:3000/ask/aaaaaaaa/public-post");
+    expect(urls).not.toContain("http://localhost:3000/talk/bbbbbbbb/private-post");
   });
 });
 
@@ -280,7 +317,7 @@ describe("the permanent noindex list, whatever the flag says", () => {
     ["/g/join/[code]", joinMetadata],
     ["/onboarding", onboardingMetadata],
     ["/admin/reports", adminMetadata],
-    ["/p/[postId]/edit", editMetadata],
+    ["/ask/[shortId]/[slug]/edit", editMetadata],
   ];
 
   it.each(staticPages)("%s is noindex nofollow with the flag off", (_name, metadata) => {
@@ -308,7 +345,7 @@ describe("the permanent noindex list, whatever the flag says", () => {
     expect(isPermanentlyNoindex(pathname)).toBe(true);
   });
 
-  it.each(["/", "/feed", "/g", "/g/vice-city-locals", "/p/abc", "/u/mara"])(
+  it.each(["/", "/feed", "/g", "/g/vice-city-locals", "/p/abc", "/ask/k3m91xqz/a-thread", "/topic/map", "/u/mara"])(
     "does not put %s on the permanent list",
     (pathname) => {
       expect(isPermanentlyNoindex(pathname)).toBe(false);
@@ -325,14 +362,14 @@ describe("the permanent noindex list, whatever the flag says", () => {
   it("indexes a post gated above level 0 once the flag is on, because its title is public", async () => {
     setFlag("off");
     holder.client = createFakeClient({ tables: { posts: { data: postRow(6), error: null } } });
-    expect(robotsOf(await postMetadata({ params: Promise.resolve({ postId: UUID }) }))).toMatchObject({
+    expect(robotsOf(await postMetadata({ params: postParams() }))).toMatchObject({
       index: false,
       follow: false,
     });
 
     setFlag("on");
     holder.client = createFakeClient({ tables: { posts: { data: postRow(6), error: null } } });
-    expect(robotsOf(await postMetadata({ params: Promise.resolve({ postId: UUID }) }))).toMatchObject({
+    expect(robotsOf(await postMetadata({ params: postParams() }))).toMatchObject({
       index: true,
       follow: true,
     });
@@ -349,7 +386,7 @@ describe("the permanent noindex list, whatever the flag says", () => {
           },
         },
       });
-      const metadata = await postMetadata({ params: Promise.resolve({ postId: UUID }) });
+      const metadata = await postMetadata({ params: postParams() });
       expect(robotsOf(metadata), `flag ${flag}`).toMatchObject({ index: false, follow: false });
     }
   });
@@ -360,7 +397,7 @@ describe("the permanent noindex list, whatever the flag says", () => {
       holder.client = createFakeClient({
         tables: { posts: { data: { ...postRow(0), is_hidden: true }, error: null } },
       });
-      const metadata = await postMetadata({ params: Promise.resolve({ postId: UUID }) });
+      const metadata = await postMetadata({ params: postParams() });
       expect(robotsOf(metadata), `flag ${flag}`).toMatchObject({ index: false, follow: false });
     }
   });
@@ -368,7 +405,7 @@ describe("the permanent noindex list, whatever the flag says", () => {
   it("never indexes a missing post", async () => {
     setFlag("on");
     holder.client = createFakeClient({ tables: { posts: { data: null, error: null } } });
-    expect(robotsOf(await postMetadata({ params: Promise.resolve({ postId: UUID }) }))).toMatchObject({
+    expect(robotsOf(await postMetadata({ params: postParams() }))).toMatchObject({
       index: false,
       follow: false,
     });

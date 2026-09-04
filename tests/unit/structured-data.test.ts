@@ -9,6 +9,8 @@ const AUTHOR = { username: "vic", display_name: "Vic", avatar_path: null };
 
 const POST: PostRow = {
   id: "post-1",
+  short_id: "k3m91xqz",
+  slug: "where-does-the-second-heist-start",
   author_id: "user-1",
   group_id: null,
   topic: "story",
@@ -90,7 +92,7 @@ describe("postJsonLd", () => {
     expect(accepted["@type"]).toBe("Answer");
     expect(accepted.text).toBe(REPLY.body);
     expect(accepted.upvoteCount).toBe(7);
-    expect(accepted.url).toBe("https://askgta6.test/p/post-1#reply-reply-1");
+    expect(accepted.url).toBe("https://askgta6.test/ask/k3m91xqz/where-does-the-second-heist-start#reply-reply-1");
     // A display name is optional, so the username stands in.
     expect((accepted.author as Record<string, unknown>).name).toBe("mona");
   });

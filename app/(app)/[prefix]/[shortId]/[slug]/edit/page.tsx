@@ -1,21 +1,30 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
+import { notFound, permanentRedirect, redirect } from "next/navigation";
 import { PostComposer } from "@/components/form/PostComposer";
 import { editPost } from "@/actions/posts";
-import { getPostRaw } from "@/lib/queries/posts";
+import { getPostRawByShortId } from "@/lib/queries/posts";
 import { getViewer } from "@/lib/viewer";
 import { NOINDEX } from "@/lib/indexing";
+import { isPostPrefix, postPath, prefixForKind } from "@/lib/post-url";
 
 export const metadata: Metadata = { title: "Edit post", robots: NOINDEX };
 
-export default async function EditPostPage({ params }: { params: Promise<{ postId: string }> }) {
-  const { postId } = await params;
+type Params = Promise<{ prefix: string; shortId: string; slug: string }>;
+
+export default async function EditPostPage({ params }: { params: Params }) {
+  const { prefix, shortId, slug } = await params;
+  if (!isPostPrefix(prefix)) notFound();
+
   const viewer = await getViewer();
   if (!viewer) redirect("/auth/sign-in");
 
-  const post = await getPostRaw(postId);
+  const post = await getPostRawByShortId(shortId);
   if (!post) notFound();
-  if (post.author_id !== viewer.userId) redirect(`/p/${postId}`);
+
+  // The same rule as the thread itself: the short id resolved it, so anything
+  // else in the path is stale rather than wrong.
+  if (prefix !== prefixForKind(post.kind) || slug !== post.slug) permanentRedirect(`${postPath(post)}/edit`);
+  if (post.author_id !== viewer.userId) redirect(postPath(post));
 
   return (
     <div className="space-y-8">

@@ -10,6 +10,7 @@ import { TURNSTILE_FIELD, verifyTurnstile } from "@/lib/turnstile";
 import { containsLink } from "@/lib/links";
 import { checkLinkPrivilege } from "@/lib/link-privilege";
 import { checkSpam, quarantine } from "@/lib/spam";
+import { legacyPostPath, postPath, safePostPath, type PostUrlParts } from "@/lib/post-url";
 
 function readForm(formData: FormData) {
   return {
@@ -62,7 +63,9 @@ export async function createPost(_state: ActionResult | null, formData: FormData
       body: parsed.data.body,
       spoiler_level: parsed.data.spoilerLevel,
     })
-    .select("id")
+    // The short id and slug are written by a trigger, so they come back from the
+    // insert rather than being guessed here.
+    .select("id, short_id, slug, kind")
     .single();
 
   if (error || !data) return { ok: false, error: describe(error?.message ?? "") };
@@ -70,7 +73,7 @@ export async function createPost(_state: ActionResult | null, formData: FormData
   if (verdict.spam) await quarantine("post", data.id, viewer.userId, verdict.note);
 
   revalidatePath("/feed");
-  redirect(`/p/${data.id}`);
+  redirect(postPath(data as PostUrlParts));
 }
 
 export async function editPost(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
@@ -94,7 +97,7 @@ export async function editPost(_state: ActionResult | null, formData: FormData):
   const verdict = await checkSpam({ body: parsed.data.body, excludeId: parsed.data.postId });
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("posts")
     .update({
       title: parsed.data.title,
@@ -103,14 +106,19 @@ export async function editPost(_state: ActionResult | null, formData: FormData):
       spoiler_level: parsed.data.spoilerLevel,
     })
     .eq("id", parsed.data.postId)
-    .eq("author_id", viewer.userId);
+    .eq("author_id", viewer.userId)
+    // An edited title means a new slug, so the path to go back to is read from
+    // the row the update returned, not built from what came in.
+    .select("short_id, slug, kind")
+    .maybeSingle();
 
   if (error) return { ok: false, error: describe(error.message) };
 
   if (verdict.spam) await quarantine("post", parsed.data.postId, viewer.userId, verdict.note);
 
-  revalidatePath(`/p/${parsed.data.postId}`);
-  redirect(`/p/${parsed.data.postId}`);
+  const path = data ? postPath(data as PostUrlParts) : legacyPostPath(parsed.data.postId);
+  revalidatePath(path);
+  redirect(path);
 }
 
 export async function deletePost(formData: FormData): Promise<void> {
@@ -135,5 +143,5 @@ export async function acceptReply(formData: FormData): Promise<void> {
   const supabase = await createSupabaseServerClient();
   await supabase.rpc("accept_reply", { p_post_id: postId, p_reply_id: replyId });
 
-  revalidatePath(`/p/${postId}`);
+  revalidatePath(safePostPath(formData.get("path")) ?? legacyPostPath(postId));
 }

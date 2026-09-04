@@ -1,7 +1,7 @@
 import { absoluteUrl } from "./site";
+import { postPath, type PostUrlParts } from "./post-url";
 
-export type FeedItem = {
-  id: string;
+export type FeedItem = PostUrlParts & {
   title: string;
   author: string;
   createdAt: string;
@@ -43,7 +43,7 @@ export function renderFeed(channel: FeedChannel): string {
 
   const items = channel.items
     .map((item) => {
-      const url = absoluteUrl(`/p/${item.id}`);
+      const url = absoluteUrl(postPath(item));
       return [
         "    <item>",
         `      <title>${escapeXml(item.title)}</title>`,

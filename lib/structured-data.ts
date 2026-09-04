@@ -1,5 +1,8 @@
 import { indexingEnabled, postIsIndexable, groupIsIndexable } from "./indexing";
 import { absoluteUrl } from "./site";
+import { postPath } from "./post-url";
+import { topicDescription, topicPath, topicTitle } from "./topic-page";
+import type { Topic } from "./topics";
 import type { GatedPost, PostAuthor } from "./queries/posts";
 import type { GatedReply } from "./queries/replies";
 import type { GroupRow } from "./queries/groups";
@@ -30,11 +33,11 @@ function bodyOf(item: { hidden: boolean; body?: string }): string | undefined {
   return item.hidden ? undefined : item.body;
 }
 
-function answer(reply: GatedReply, postId: string): JsonLd {
+function answer(reply: GatedReply, threadUrl: string): JsonLd {
   return {
     "@type": "Answer",
     text: bodyOf(reply),
-    url: absoluteUrl(`/p/${postId}#reply-${reply.id}`),
+    url: `${threadUrl}#reply-${reply.id}`,
     dateCreated: reply.created_at,
     upvoteCount: Math.max(0, reply.vote_count ?? 0),
     author: person(reply.author),
@@ -53,7 +56,7 @@ function answer(reply: GatedReply, postId: string): JsonLd {
 export function postJsonLd(post: GatedPost, replies: readonly GatedReply[]): JsonLd | null {
   if (!indexingEnabled() || !postIsIndexable(post)) return null;
 
-  const url = absoluteUrl(`/p/${post.id}`);
+  const url = absoluteUrl(postPath(post));
   const accepted = post.accepted_reply_id
     ? replies.find((reply) => reply.id === post.accepted_reply_id)
     : undefined;
@@ -84,7 +87,7 @@ export function postJsonLd(post: GatedPost, replies: readonly GatedReply[]): Jso
         answerCount: Math.max(0, post.reply_count ?? 0),
         upvoteCount: Math.max(0, post.vote_count ?? 0),
         interactionStatistic: stats,
-        acceptedAnswer: answer(accepted, post.id),
+        acceptedAnswer: answer(accepted, url),
       },
     };
   }
@@ -97,6 +100,21 @@ export function postJsonLd(post: GatedPost, replies: readonly GatedReply[]): Jso
     text: bodyOf(post),
     datePublished: post.created_at,
     interactionStatistic: stats,
+  };
+}
+
+/** A topic hub is a collection of every thread tagged with it. Always indexable. */
+export function topicJsonLd(topic: Topic): JsonLd | null {
+  if (!indexingEnabled()) return null;
+
+  const url = absoluteUrl(topicPath(topic));
+  return {
+    "@context": CONTEXT,
+    "@type": "CollectionPage",
+    "@id": url,
+    url,
+    name: topicTitle(topic),
+    description: topicDescription(topic),
   };
 }
 

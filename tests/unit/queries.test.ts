@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase/public", () => ({
   createSupabasePublicClient: () => holder.client,
 }));
 
-const { getPost, getPostRaw, listLandingPosts, listPosts, listSyndicatedPosts, PAGE_SIZE } = await import(
+const { getPostByShortId, getPostRaw, listLandingPosts, listPosts, listSyndicatedPosts, PAGE_SIZE } = await import(
   "@/lib/queries/posts"
 );
 const { listReplies, listRepliesByAuthor } = await import("@/lib/queries/replies");
@@ -27,6 +27,8 @@ const author = { username: "mara", display_name: "Mara", avatar_path: null };
 function postRow(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     id: "11111111-1111-4111-8111-111111111111",
+    short_id: "k3m91xqz",
+    slug: "a-title-that-must-not-leak",
     author_id: "aaaa",
     group_id: null,
     topic: "map",
@@ -160,18 +162,26 @@ describe("listPosts", () => {
   });
 });
 
-describe("getPost", () => {
+describe("getPostByShortId", () => {
+  it("looks the post up by its short id, never by the slug in the path", async () => {
+    holder.client = createFakeClient({ tables: { posts: { data: postRow(), error: null } } });
+    await getPostByShortId("k3m91xqz", 0);
+
+    expect(holder.client.calls).toContainEqual({ method: "eq", args: ["short_id", "k3m91xqz"] });
+    expect(holder.client.calls.map((call) => call.args[0])).not.toContain("slug");
+  });
+
   it("gates the single row and returns null when it is missing", async () => {
     holder.client = createFakeClient({ tables: { posts: { data: postRow({ spoiler_level: 3 }), error: null } } });
-    const gated = await getPost("id", 1);
+    const gated = await getPostByShortId("k3m91xqz", 1);
     expect(gated?.hidden).toBe(true);
     expect(Object.keys(gated!)).not.toContain("body");
 
     holder.client = createFakeClient({ tables: { posts: { data: null, error: null } } });
-    expect(await getPost("id", 7)).toBeNull();
+    expect(await getPostByShortId("k3m91xqz", 7)).toBeNull();
   });
 
-  it("returns the raw row for the owner paths that ask for it", async () => {
+  it("returns the raw row by uuid for reveal, which checks the item itself", async () => {
     holder.client = createFakeClient({ tables: { posts: { data: postRow({ spoiler_level: 7 }), error: null } } });
     expect((await getPostRaw("id"))?.title).toBe("A title that must not leak");
 
@@ -335,7 +345,9 @@ describe("listSyndicatedPosts", () => {
         posts: {
           data: [
             {
-              id: "post-1",
+              short_id: "k3m91xqz",
+              slug: "how-big-is-leonida",
+              kind: "question",
               title: "How big is Leonida",
               created_at: "2026-06-01T12:00:00.000Z",
               author: [author],
@@ -350,10 +362,18 @@ describe("listSyndicatedPosts", () => {
     const items = await listSyndicatedPosts();
 
     expect(items).toEqual([
-      { id: "post-1", title: "How big is Leonida", author: "Mara", createdAt: "2026-06-01T12:00:00.000Z" },
+      {
+        short_id: "k3m91xqz",
+        slug: "how-big-is-leonida",
+        kind: "question",
+        title: "How big is Leonida",
+        author: "Mara",
+        createdAt: "2026-06-01T12:00:00.000Z",
+      },
     ]);
-    // No body was selected, so there is nothing for a feed reader to leak.
-    expect(Object.keys(items[0] ?? {})).toEqual(["id", "title", "author", "createdAt"]);
+    // No body and no uuid were selected, so there is nothing for a feed reader to
+    // leak and nothing but the url parts to build a link from.
+    expect(Object.keys(items[0] ?? {})).toEqual(["short_id", "slug", "kind", "title", "author", "createdAt"]);
   });
 
   it("filters to level 0 and drops posts inside a private group", async () => {
@@ -361,9 +381,19 @@ describe("listSyndicatedPosts", () => {
       tables: {
         posts: {
           data: [
-            { id: "a", title: "Public", created_at: "2026-06-01T12:00:00.000Z", author: [author], group: null },
             {
-              id: "b",
+              short_id: "a",
+              slug: "public",
+              kind: "question",
+              title: "Public",
+              created_at: "2026-06-01T12:00:00.000Z",
+              author: [author],
+              group: null,
+            },
+            {
+              short_id: "b",
+              slug: "inside-a-private-room",
+              kind: "question",
               title: "Inside a private room",
               created_at: "2026-06-01T12:00:00.000Z",
               author: [author],
@@ -377,7 +407,7 @@ describe("listSyndicatedPosts", () => {
 
     const items = await listSyndicatedPosts();
 
-    expect(items.map((item) => item.id)).toEqual(["a"]);
+    expect(items.map((item) => item.short_id)).toEqual(["a"]);
     expect(holder.client.calls).toContainEqual({ method: "eq", args: ["spoiler_level", 0] });
     expect(holder.client.calls).toContainEqual({ method: "eq", args: ["is_hidden", false] });
   });

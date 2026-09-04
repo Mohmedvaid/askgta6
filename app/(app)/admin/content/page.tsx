@@ -6,6 +6,7 @@ import { BlockListEditor } from "@/components/admin/BlockListEditor";
 import { listBlockedDomains, listBlockedPhrases, listRecentGroups, listRecentPosts } from "@/lib/queries/admin";
 import { relativeTime } from "@/lib/relative-time";
 import { NOINDEX } from "@/lib/indexing";
+import { legacyPostPath } from "@/lib/post-url";
 
 export const metadata: Metadata = { title: "Posts and groups", robots: NOINDEX };
 
@@ -60,7 +61,7 @@ export default async function AdminContentPage() {
                   ) : null}
                   <span>{post.authorUsername ?? "deleted account"}</span>
                   <span>{relativeTime(post.createdAt)}</span>
-                  <Link href={`/p/${post.id}`} className="font-semibold text-text-secondary">
+                  <Link href={legacyPostPath(post.id)} className="font-semibold text-text-secondary">
                     Open
                   </Link>
                 </div>

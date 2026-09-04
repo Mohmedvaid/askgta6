@@ -105,7 +105,7 @@ One pill in the header: "Spoiler shield: off", or the chapter it is holding you 
 
 `NEXT_PUBLIC_INDEXING` is `off` in production. While off: `robots.txt` disallows everything, the sitemap is empty, every page emits `noindex, nofollow, nocache`, and `next.config.ts` adds an `X-Robots-Tag` header to every response.
 
-Set to `on`, these become indexable: the landing page, the feed, public groups, public profiles, and every public post whatever its spoiler level, because every post has a readable title. A feed search result page stays noindex even then, since arbitrary query permutations are index bloat.
+Set to `on`, these become indexable: the landing page, the feed, the topic hubs, public groups, public profiles, and every public post whatever its spoiler level, because every post has a readable title. A feed search result page stays noindex even then, since arbitrary query permutations are index bloat.
 
 ### Permanently noindex, whatever the flag says
 
@@ -128,9 +128,24 @@ Noindex is the root layout default and indexable pages opt in, because forgettin
 - The feed and group routes have a `loading.tsx`. **The post route deliberately does not.** That boundary flushes a 200 shell before `getPost` has run, which turns every missing post into a 200 for a crawler; the Playwright suite catches it. The post page streams its replies behind an inner `<Suspense>` instead, which keeps the 404 and still paints the post first.
 - Avatars go through `next/image`. The Supabase storage host is allowed in `next.config.ts`; without that entry the component throws rather than falling back.
 
+## Post URLs
+
+A post lives at `/ask/<short_id>/<slug>` if it is a question and `/talk/<short_id>/<slug>` if it is a discussion. Both parts are columns on `posts`, written by a trigger in migration `0014` and never by the app:
+
+- **`short_id`** is eight characters of base 36, assigned on insert and never changed, unique. It is the only part that resolves a post. A value supplied by whoever writes the row is thrown away, so it cannot be chosen.
+- **`slug`** is derived from the title on every write, lowercased, hyphenated, cut at 60 characters. It is decoration, so it can go stale in a link without breaking it.
+
+Because the id comes first, a wrong slug or the prefix belonging to the other kind is a stale link rather than a broken one, and the route redirects to the canonical path instead of 404ing. `/p/<uuid>`, the old URL, redirects too: it is a route handler rather than a page, which is the one place in the app that can emit a literal 301, and it is what every link shared before this change, and every internal link that holds nothing but a uuid, still resolves through. In-page redirects are 308, the permanent redirect `next/navigation` offers a server component. `tests/unit/post-urls.test.ts` is the matrix.
+
+Everything that links to a post goes through `postPath` in `lib/post-url.ts`. Server actions cannot build it themselves, because they are handed a uuid and the page is addressed by a short id, so the canonical path travels with the request in a hidden field and is checked against the path shape before anything is revalidated.
+
+## Topic hubs
+
+`/topic/<topic>`, one per entry in `TOPICS`, is the filtered feed for that topic with its own title, description, canonical, and `CollectionPage`. They are indexable whenever the flag is on, they are in the sitemap above group and post pages, and the topic chips point at them: the chip on every post card, and the filter row on the site wide feed. Inside a group the filter row keeps the query string instead, because a hub would take the reader out of the group they are standing in.
+
 ## Syndication and structured data
 
-- **JSON-LD**, from `lib/structured-data.ts`, rendered by `components/seo/JsonLd`. A question with an accepted answer both reader and crawler can see becomes a `QAPage`; everything else is a `DiscussionForumPosting` with `interactionStatistic` counters for votes and replies. Public groups get a `CollectionPage`. It returns null unless the page is indexable, and no branch can carry a gated body because the gate deleted it before the page saw it.
+- **JSON-LD**, from `lib/structured-data.ts`, rendered by `components/seo/JsonLd`. A question with an accepted answer both reader and crawler can see becomes a `QAPage`; everything else is a `DiscussionForumPosting` with `interactionStatistic` counters for votes and replies. Public groups and topic hubs get a `CollectionPage`. It returns null unless the page is indexable, and no branch can carry a gated body because the gate deleted it before the page saw it.
 - **RSS** at `/feed.xml` and `/g/[slug]/feed.xml`. Titles, links, authors, dates. No item has a description and nothing carries a body: a feed reader has no shield, so the query takes level 0 rows only and never selects a body. Both are empty while indexing is off, the way the sitemap is, and the `link rel=alternate` that advertises them only appears when the flag is on.
 
 ## Outbound links and spam

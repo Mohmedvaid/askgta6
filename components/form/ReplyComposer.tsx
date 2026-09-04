@@ -11,9 +11,11 @@ import { createReply } from "@/actions/replies";
 type ReplyComposerProps = {
   postId: string;
   defaultSpoilerLevel: number;
+  /** The canonical path of the thread, so a new reply revalidates the page in view. */
+  path: string;
 };
 
-export function ReplyComposer({ postId, defaultSpoilerLevel }: ReplyComposerProps) {
+export function ReplyComposer({ postId, defaultSpoilerLevel, path }: ReplyComposerProps) {
   const [state, formAction] = useActionState(createReply, null);
   // React resets an uncontrolled form on submit, which would throw away the draft
   // when the server rejects it. Holding the body here keeps a refused reply on screen.
@@ -29,6 +31,7 @@ export function ReplyComposer({ postId, defaultSpoilerLevel }: ReplyComposerProp
     <form action={formAction} className="relative space-y-5">
       <Honeypot />
       <input type="hidden" name="postId" value={postId} />
+      <input type="hidden" name="path" value={path} />
 
       <div>
         <label htmlFor="reply-body" className="text-sm font-semibold text-text-primary">

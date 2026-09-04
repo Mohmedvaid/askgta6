@@ -9,6 +9,19 @@ import { TURNSTILE_FIELD, verifyTurnstile } from "@/lib/turnstile";
 import { containsLink } from "@/lib/links";
 import { checkLinkPrivilege } from "@/lib/link-privilege";
 import { checkSpam, quarantine } from "@/lib/spam";
+import { legacyPostPath, safePostPath } from "@/lib/post-url";
+
+/**
+ * The page to revalidate after writing to a thread.
+ *
+ * The canonical path rides along in the form, because these actions are given a
+ * post's uuid and the page it is rendered on is addressed by its short id. The
+ * legacy path is the fallback, and it redirects, so a stale cache there is
+ * nothing worse than one extra hop.
+ */
+function threadPath(formData: FormData, postId: string): string {
+  return safePostPath(formData.get("path")) ?? legacyPostPath(postId);
+}
 
 export async function createReply(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const viewer = await getViewer();
@@ -56,7 +69,7 @@ export async function createReply(_state: ActionResult | null, formData: FormDat
 
   if (verdict.spam && data) await quarantine("reply", data.id, viewer.userId, verdict.note);
 
-  revalidatePath(`/p/${parsed.data.postId}`);
+  revalidatePath(threadPath(formData, parsed.data.postId));
   return { ok: true, data: undefined };
 }
 
@@ -70,5 +83,5 @@ export async function deleteReply(formData: FormData): Promise<void> {
   const supabase = await createSupabaseServerClient();
   await supabase.from("replies").delete().eq("id", replyId).eq("author_id", viewer.userId);
 
-  revalidatePath(`/p/${postId}`);
+  revalidatePath(threadPath(formData, postId));
 }

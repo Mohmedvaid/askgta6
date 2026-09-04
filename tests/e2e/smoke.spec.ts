@@ -110,9 +110,14 @@ test.describe("magic link, disabled", () => {
 });
 
 test("404 stays on brand", async ({ page }) => {
-  const response = await page.goto("/p/does-not-exist-at-all");
+  const response = await page.goto("/ask/zzzzzzzz/nothing-at-this-short-id");
   expect(response?.status()).toBe(404);
   await expect(page.getByRole("heading", { name: "Nothing at this address" })).toBeVisible();
+});
+
+test("an old post link that resolves to nothing is a 404, not a redirect loop", async ({ page }) => {
+  const response = await page.goto("/p/00000000-0000-4000-8000-000000000000");
+  expect(response?.status()).toBe(404);
 });
 
 test.describe("sign out", () => {

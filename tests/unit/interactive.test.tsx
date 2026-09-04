@@ -134,7 +134,7 @@ describe("ReplyComposer", () => {
   it("clears the textarea after a successful reply", async () => {
     createReply.mockResolvedValue({ ok: true, data: undefined });
 
-    render(<ReplyComposer postId="post-1" defaultSpoilerLevel={2} />);
+    render(<ReplyComposer postId="post-1" path="/ask/k3m91xqz/a-thread" defaultSpoilerLevel={2} />);
     const textarea = screen.getByLabelText("Your reply");
     await userEvent.type(textarea, "My answer.");
     await userEvent.click(screen.getByRole("button", { name: "Post reply" }));
@@ -145,7 +145,7 @@ describe("ReplyComposer", () => {
   it("keeps the draft and shows the error when the reply is refused", async () => {
     createReply.mockResolvedValue({ ok: false, error: "You are replying too quickly. Wait a minute and try again." });
 
-    render(<ReplyComposer postId="post-1" defaultSpoilerLevel={0} />);
+    render(<ReplyComposer postId="post-1" path="/ask/k3m91xqz/a-thread" defaultSpoilerLevel={0} />);
     await userEvent.type(screen.getByLabelText("Your reply"), "My answer.");
     await userEvent.click(screen.getByRole("button", { name: "Post reply" }));
 
@@ -194,7 +194,7 @@ describe("ReplyItem", () => {
 
   it("shows the body, the author, and the accept control for the post author", () => {
     render(
-      <ReplyItem reply={reply} myVote={0} accepted={false} canAccept isAuthor={false} acceptAction={noop} deleteAction={noop} />,
+      <ReplyItem reply={reply} myVote={0} accepted={false} canAccept isAuthor={false} acceptAction={noop} deleteAction={noop} path="/ask/k3m91xqz/a-thread" />,
     );
     expect(screen.getByText("The map is bigger than it looks.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "june" })).toHaveAttribute("href", "/u/june");
@@ -204,7 +204,7 @@ describe("ReplyItem", () => {
 
   it("marks the accepted answer and offers to unmark it", () => {
     render(
-      <ReplyItem reply={reply} myVote={1} accepted canAccept isAuthor acceptAction={noop} deleteAction={noop} />,
+      <ReplyItem reply={reply} myVote={1} accepted canAccept isAuthor acceptAction={noop} deleteAction={noop} path="/ask/k3m91xqz/a-thread" />,
     );
     expect(screen.getByText("Accepted answer")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Unmark answer" })).toBeInTheDocument();
@@ -225,7 +225,7 @@ describe("ReplyItem", () => {
     };
 
     render(
-      <ReplyItem reply={hidden} myVote={0} accepted={false} canAccept={false} isAuthor={false} acceptAction={noop} deleteAction={noop} />,
+      <ReplyItem reply={hidden} myVote={0} accepted={false} canAccept={false} isAuthor={false} acceptAction={noop} deleteAction={noop} path="/ask/k3m91xqz/a-thread" />,
     );
     expect(screen.getByRole("button", { name: "Reveal anyway" })).toBeInTheDocument();
     expect(screen.getByText("Body hidden until Chapter 4")).toBeInTheDocument();

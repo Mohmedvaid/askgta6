@@ -5,6 +5,7 @@ import { ModerationRow } from "@/components/ModerationRow";
 import { BanControl } from "@/components/admin/BanControl";
 import { listReportedItems } from "@/lib/queries/admin";
 import { NOINDEX } from "@/lib/indexing";
+import { legacyPostPath } from "@/lib/post-url";
 
 export const metadata: Metadata = { title: "Reports", robots: NOINDEX };
 
@@ -42,7 +43,7 @@ export default async function AdminReportsPage() {
                 </span>
                 <span className="text-text-muted">{item.reasons.join(", ")}</span>
                 {item.targetType === "post" ? (
-                  <Link href={`/p/${item.targetId}`} className="font-semibold text-text-secondary">
+                  <Link href={legacyPostPath(item.targetId)} className="font-semibold text-text-secondary">
                     Open
                   </Link>
                 ) : null}

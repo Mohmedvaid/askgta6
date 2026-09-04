@@ -1,14 +1,25 @@
 import Link from "next/link";
 import { TOPICS, TOPIC_LABELS, type Topic } from "@/lib/topics";
+import { topicPath } from "@/lib/topic-page";
 
 type TopicFilterProps = {
   basePath: string;
   active: Topic | null;
   tab?: string;
+  /**
+   * Point the chips at the topic hubs instead of filtering in place.
+   *
+   * On the site wide feed a topic has a page of its own worth linking to. Inside
+   * a group it does not: filtering there has to stay inside the group, so those
+   * chips keep the query string.
+   */
+  hubs?: boolean;
 };
 
-export function TopicFilter({ basePath, active, tab }: TopicFilterProps) {
+export function TopicFilter({ basePath, active, tab, hubs = false }: TopicFilterProps) {
   const href = (topic: Topic | null) => {
+    if (hubs) return topic ? topicPath(topic) : basePath;
+
     const params = new URLSearchParams();
     if (tab && tab !== "latest") params.set("tab", tab);
     if (topic) params.set("topic", topic);

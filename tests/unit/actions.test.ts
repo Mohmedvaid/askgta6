@@ -63,6 +63,9 @@ const { adminEditProfile, deleteAccount, editBlockList, moderate, setBanned } = 
   "@/actions/admin"
 );
 
+const POST_PATH = "/ask/k3m91xqz/a-title-long-enough-to-pass";
+/** What the insert and the update hand back: the trigger writes these, not the action. */
+const URL_PARTS = { short_id: "k3m91xqz", slug: "a-title-long-enough-to-pass", kind: "question" };
 const UUID = "8b2f0f7a-1111-4222-8333-444455556666";
 const SIGNED_IN = {
   userId: "user-1",
@@ -176,8 +179,8 @@ describe("createPost", () => {
 
   it("redirects to the new post on success", async () => {
     viewer.current = SIGNED_IN;
-    holder.client = createFakeClient({ tables: { posts: { data: { id: UUID }, error: null } } });
-    expect(await captureRedirect(() => createPost(null, validPost()))).toBe(`/p/${UUID}`);
+    holder.client = createFakeClient({ tables: { posts: { data: { id: UUID, ...URL_PARTS }, error: null } } });
+    expect(await captureRedirect(() => createPost(null, validPost()))).toBe(POST_PATH);
   });
 
   it("translates the rate limit into plain english", async () => {
@@ -213,8 +216,17 @@ describe("editPost", () => {
     expect(await editPost(null, validPost({ postId: "nope" }))).toMatchObject({ ok: false });
   });
 
-  it("redirects back to the post after saving", async () => {
+  it("redirects back to the post after saving, at the slug the new title produced", async () => {
     viewer.current = SIGNED_IN;
+    holder.client = createFakeClient({ tables: { posts: { data: URL_PARTS, error: null } } });
+
+    expect(await captureRedirect(() => editPost(null, validPost({ postId: UUID })))).toBe(POST_PATH);
+  });
+
+  it("falls back to the legacy path when the update matched no row to read back", async () => {
+    viewer.current = SIGNED_IN;
+    holder.client = createFakeClient({ tables: { posts: { data: null, error: null } } });
+
     expect(await captureRedirect(() => editPost(null, validPost({ postId: UUID })))).toBe(`/p/${UUID}`);
   });
 });
@@ -675,7 +687,7 @@ describe("deleting an account", () => {
 describe("the composer honeypot", () => {
   beforeEach(() => {
     viewer.current = SIGNED_IN;
-    holder.client = createFakeClient({ tables: { posts: { data: { id: UUID }, error: null } } });
+    holder.client = createFakeClient({ tables: { posts: { data: { id: UUID, ...URL_PARTS }, error: null } } });
   });
 
   it("writes no post and says nothing about why", async () => {
@@ -701,7 +713,7 @@ describe("the composer honeypot", () => {
     const data = validPost();
     data.set(HONEYPOT_FIELD, "");
 
-    expect(await captureRedirect(() => createPost(null, data))).toBe(`/p/${UUID}`);
+    expect(await captureRedirect(() => createPost(null, data))).toBe(POST_PATH);
   });
 });
 
@@ -732,10 +744,10 @@ describe("the link gate on the composers", () => {
   it("does not consult the gate at all for a post with no link in it", async () => {
     viewer.current = SIGNED_IN;
     links.allowed = false;
-    holder.client = createFakeClient({ tables: { posts: { data: { id: UUID }, error: null } } });
+    holder.client = createFakeClient({ tables: { posts: { data: { id: UUID, ...URL_PARTS }, error: null } } });
 
     // The body has no link, so the privilege never comes up.
-    expect(await captureRedirect(() => createPost(null, validPost()))).toBe(`/p/${UUID}`);
+    expect(await captureRedirect(() => createPost(null, validPost()))).toBe(POST_PATH);
   });
 
   it("catches a link hidden in the title, not just the body", async () => {
@@ -751,10 +763,10 @@ describe("the spam filter on the composers", () => {
   it("saves the post and then hides it, rather than refusing", async () => {
     viewer.current = SIGNED_IN;
     spam.verdict = { spam: true, rule: "blocked_domain", note: "Blocked domain: bit.ly" };
-    holder.client = createFakeClient({ tables: { posts: { data: { id: UUID }, error: null } } });
+    holder.client = createFakeClient({ tables: { posts: { data: { id: UUID, ...URL_PARTS }, error: null } } });
 
     // The author is redirected to their post as normal. It is hidden and reported.
-    expect(await captureRedirect(() => createPost(null, validPost()))).toBe(`/p/${UUID}`);
+    expect(await captureRedirect(() => createPost(null, validPost()))).toBe(POST_PATH);
     expect(spam.quarantined).toEqual([["post", UUID, "user-1", "Blocked domain: bit.ly"]]);
   });
 
@@ -774,7 +786,7 @@ describe("the spam filter on the composers", () => {
 
   it("leaves a clean post alone", async () => {
     viewer.current = SIGNED_IN;
-    holder.client = createFakeClient({ tables: { posts: { data: { id: UUID }, error: null } } });
+    holder.client = createFakeClient({ tables: { posts: { data: { id: UUID, ...URL_PARTS }, error: null } } });
 
     await captureRedirect(() => createPost(null, validPost()));
     expect(spam.quarantined).toHaveLength(0);

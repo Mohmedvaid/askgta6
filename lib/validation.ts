@@ -29,6 +29,9 @@ export const voteSchema = z.object({
   targetType: z.enum(["post", "reply"]),
   targetId: uuid,
   value: z.coerce.number().int().min(-1).max(1),
+  // The page the vote was cast from, checked against the post path shape before
+  // it is revalidated. Absent when the vote came from a feed.
+  path: z.string().optional(),
 });
 
 export const acceptReplySchema = z.object({

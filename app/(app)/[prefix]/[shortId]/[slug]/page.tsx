@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { SpoilerBadge } from "@/components/SpoilerBadge";
 import { TopicBadge } from "@/components/TopicBadge";
 import { PostBody } from "@/components/post/PostBody";
@@ -12,7 +12,7 @@ import { ReplyComposer } from "@/components/form/ReplyComposer";
 import { ReportDialog } from "@/components/form/ReportDialog";
 import { Empty } from "@/components/Empty";
 import { SkeletonList } from "@/components/Skeleton";
-import { getPost } from "@/lib/queries/posts";
+import { getPostByShortId } from "@/lib/queries/posts";
 import { listReplies } from "@/lib/queries/replies";
 import { getShieldState, getViewer, getViewerProgress, type Viewer } from "@/lib/viewer";
 import type { ViewerProgress } from "@/lib/spoilers";
@@ -24,45 +24,62 @@ import { relativeTime } from "@/lib/relative-time";
 import { postIsIndexable, robotsFor } from "@/lib/indexing";
 import { postJsonLd } from "@/lib/structured-data";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { isPostPrefix, postPath, prefixForKind } from "@/lib/post-url";
 
-type Params = Promise<{ postId: string }>;
+export type PostRouteParams = Promise<{ prefix: string; shortId: string; slug: string }>;
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const { postId } = await params;
+const NOT_FOUND: Metadata = { title: "Post not found", robots: robotsFor(false) };
+
+export async function generateMetadata({ params }: { params: PostRouteParams }): Promise<Metadata> {
+  const { prefix, shortId } = await params;
+  if (!isPostPrefix(prefix)) return NOT_FOUND;
+
   // Metadata is generated at level 0 on purpose, so a link preview can never spoil.
-  const post = await getPost(postId, 0);
-  if (!post) return { title: "Post not found", robots: robotsFor(false) };
+  const post = await getPostByShortId(shortId, 0);
+  if (!post) return NOT_FOUND;
 
   // Titles are visible at every level, so the real one goes in the preview.
   // The description never quotes the body, which is the part that is gated.
   const title = post.title;
   const description = `A ${post.kind} in ${post.topic} on AskGTA6.`;
+  // Always the canonical path, even when this render is about to redirect: a
+  // crawler that followed a stale slug is told where the page really lives.
+  const canonical = postPath(post);
 
   return {
     title,
     description,
     robots: robotsFor(postIsIndexable(post)),
-    openGraph: {
-      title,
-      description,
-      images: [{ url: `/p/${postId}/opengraph-image`, width: 1200, height: 630 }],
-    },
+    alternates: { canonical },
+    // No images entry: opengraph-image.tsx sits in this segment, and the URL it is
+    // served from carries a build hash, so the only correct value is the one Next
+    // generates from the file itself.
+    openGraph: { title, description, url: canonical },
   };
 }
 
-export default async function PostPage({ params }: { params: Params }) {
-  const { postId } = await params;
+export default async function PostPage({ params }: { params: PostRouteParams }) {
+  const { prefix, shortId, slug } = await params;
+  if (!isPostPrefix(prefix)) notFound();
+
   // A reply defaults to the chapter the author says they are at, which is their
   // shield level whether or not the shield is currently holding anything back.
   // All three read the one cached viewer, so this is a single lookup.
   const [viewer, progress, shield] = await Promise.all([getViewer(), getViewerProgress(), getShieldState()]);
 
-  // The post and the viewer's own vote on it do not depend on each other.
-  const [post, myPostVote] = await Promise.all([getPost(postId, progress), getMyVote("post", postId)]);
   // Before the response starts, so a missing post is still a real 404. This is why
   // the route has no loading.tsx: that boundary would flush a 200 shell first.
+  const post = await getPostByShortId(shortId, progress);
   if (!post) notFound();
 
+  // The short id resolved the post, so a wrong slug or the prefix for the other
+  // kind is a link that has gone stale rather than a broken one. Permanent,
+  // because the canonical path is the one that will keep working.
+  if (prefix !== prefixForKind(post.kind) || slug !== post.slug) permanentRedirect(postPath(post));
+
+  // The vote cannot be fetched alongside the post any more: the URL carries the
+  // short id, and votes are keyed by the row's uuid.
+  const myPostVote = await getMyVote("post", post.id);
   const isAuthor = viewer?.userId === post.author_id;
 
   return (
@@ -82,7 +99,13 @@ export default async function PostPage({ params }: { params: Params }) {
         </div>
 
         <div className="mt-5 flex gap-5">
-          <VoteControl targetType="post" targetId={post.id} count={post.vote_count} myVote={myPostVote} />
+          <VoteControl
+            targetType="post"
+            targetId={post.id}
+            count={post.vote_count}
+            myVote={myPostVote}
+            path={postPath(post)}
+          />
 
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-3xl leading-tight font-bold text-text-primary">{post.title}</h1>
@@ -100,7 +123,7 @@ export default async function PostPage({ params }: { params: Params }) {
               <span>{relativeTime(post.created_at)}</span>
               {isAuthor ? (
                 <>
-                  <Link href={`/p/${post.id}/edit`} className="font-semibold text-text-secondary">
+                  <Link href={`${postPath(post)}/edit`} className="font-semibold text-text-secondary">
                     Edit
                   </Link>
                   <form action={deletePost}>
@@ -129,7 +152,7 @@ export default async function PostPage({ params }: { params: Params }) {
 
       <section className="border-t border-border pt-8">
         {viewer ? (
-          <ReplyComposer postId={post.id} defaultSpoilerLevel={shield.progress} />
+          <ReplyComposer postId={post.id} defaultSpoilerLevel={shield.progress} path={postPath(post)} />
         ) : (
           <Empty
             title="Sign in to reply"
@@ -183,6 +206,7 @@ async function Replies({
               isAuthor={viewer?.userId === reply.author_id}
               acceptAction={acceptReply}
               deleteAction={deleteReply}
+              path={postPath(post)}
             />
           ))}
         </div>

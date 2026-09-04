@@ -14,6 +14,8 @@ type ReplyItemProps = {
   isAuthor: boolean;
   acceptAction: (formData: FormData) => Promise<void>;
   deleteAction: (formData: FormData) => Promise<void>;
+  /** The canonical path of the thread, so the actions revalidate the page in view. */
+  path: string;
 };
 
 export function ReplyItem({
@@ -24,6 +26,7 @@ export function ReplyItem({
   isAuthor,
   acceptAction,
   deleteAction,
+  path,
 }: ReplyItemProps) {
   return (
     <article
@@ -39,7 +42,7 @@ export function ReplyItem({
       ) : null}
 
       <div className="flex gap-4">
-        <VoteControl targetType="reply" targetId={reply.id} count={reply.vote_count} myVote={myVote} />
+        <VoteControl targetType="reply" targetId={reply.id} count={reply.vote_count} myVote={myVote} path={path} />
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-3 text-xs text-text-muted">
@@ -64,6 +67,7 @@ export function ReplyItem({
               <form action={acceptAction}>
                 <input type="hidden" name="postId" value={reply.post_id} />
                 <input type="hidden" name="replyId" value={accepted ? "" : reply.id} />
+                <input type="hidden" name="path" value={path} />
                 <button type="submit" className="font-semibold text-text-secondary">
                   {accepted ? "Unmark answer" : "Mark as answer"}
                 </button>
@@ -74,6 +78,7 @@ export function ReplyItem({
               <form action={deleteAction}>
                 <input type="hidden" name="replyId" value={reply.id} />
                 <input type="hidden" name="postId" value={reply.post_id} />
+                <input type="hidden" name="path" value={path} />
                 <button type="submit" className="font-semibold text-danger">
                   Delete
                 </button>

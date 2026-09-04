@@ -13,6 +13,7 @@ import { getViewerProgress } from "@/lib/viewer";
 import { renderMarkdown } from "@/lib/markdown";
 import { monthAndYear, relativeTime } from "@/lib/relative-time";
 import { profileIsIndexable, robotsFor } from "@/lib/indexing";
+import { legacyPostPath } from "@/lib/post-url";
 
 type Params = Promise<{ username: string }>;
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
@@ -91,7 +92,10 @@ export default async function ProfilePage({ params, searchParams }: { params: Pa
                 <div className="flex items-center gap-3 text-xs text-text-muted">
                   <span>{relativeTime(reply.created_at)}</span>
                   <SpoilerBadge level={reply.spoiler_level} tone={reply.hidden ? "loud" : "quiet"} />
-                  <Link href={`/p/${reply.post_id}`} className="font-semibold text-text-secondary">
+                  {/* A reply carries its parent's uuid and nothing else: embedding the
+                      post here would put its title inside a payload the reader may not
+                      be allowed to see. The legacy path redirects to the real one. */}
+                  <Link href={legacyPostPath(reply.post_id)} className="font-semibold text-text-secondary">
                     Open thread
                   </Link>
                 </div>
