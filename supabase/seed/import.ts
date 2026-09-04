@@ -46,15 +46,30 @@ const PHASES: Phase[] = [
   "cleanup",
 ];
 
-/** Groups seed.json can reference. Ownership goes to a seed account, never a placeholder. */
-const GROUPS: Record<string, { name: string; description: string }> = {
+/**
+ * The groups this import owns, and the shape it wants them in.
+ *
+ * A slug not listed here still gets a group if a post references it, named after
+ * the slug. A slug listed here but referenced by nothing still gets one, which is
+ * how the private group survives: seed.json has no posts in it, but the project
+ * already has the group and an owner who is about to be deleted.
+ */
+const GROUPS: Record<string, { name: string; description: string; visibility: "public" | "private"; owner?: string }> = {
   "vice-city-locals": {
     name: "Vice City locals",
     description: "For people who care about the streets, the signage, and where the good radio towers are.",
+    visibility: "public",
   },
   "first-timers": {
     name: "First-timers",
     description: "New to the series or coming back after a decade. No question is too basic in here.",
+    visibility: "public",
+  },
+  "night-shift": {
+    name: "Night shift",
+    description: "A small crew that plays after midnight and posts about it. Invite only.",
+    visibility: "private",
+    owner: "neonlightsvc",
   },
 };
 
@@ -202,48 +217,117 @@ async function importVoters(supabase: SupabaseClient, size: number): Promise<Cre
 // Groups
 // ---------------------------------------------------------------------------
 
+type ManagedGroup = {
+  slug: string;
+  name: string;
+  description: string | null;
+  visibility: "public" | "private";
+  owner_id: string;
+  created_at: string | null;
+};
+
 /**
- * Ownership goes to the account that posted in the group first.
+ * Ownership goes to the account that posted in the group first, or to the owner
+ * named in GROUPS for a group nothing posts in.
  *
  * It has to be somebody from seed.json rather than a placeholder, because
  * groups.owner_id cascades on delete: leaving a placeholder as owner means the
- * cleanup phase would take the group and every post in it along with the
- * account.
+ * cleanup phase would take the group and every post in it along with the account.
  */
-async function importGroups(supabase: SupabaseClient, data: SeedFile): Promise<void> {
-  const slugs = [...new Set(data.posts.map((post) => post.group).filter((slug): slug is string => Boolean(slug)))];
-  if (slugs.length === 0) return;
+function managedGroups(data: SeedFile): ManagedGroup[] {
+  const referenced = [...new Set(data.posts.map((post) => post.group).filter((slug): slug is string => Boolean(slug)))];
 
-  const rows = slugs.map((slug) => {
-    const known = GROUPS[slug];
-    const first = data.posts
-      .filter((post) => post.group === slug)
-      .sort((a, b) => a.created_at.localeCompare(b.created_at))[0]!;
+  return [...new Set([...referenced, ...Object.keys(GROUPS)])]
+    .map((slug) => {
+      const known = GROUPS[slug];
+      const first = data.posts
+        .filter((post) => post.group === slug)
+        .sort((a, b) => a.created_at.localeCompare(b.created_at))[0];
 
-    return {
-      id: ids.group(slug),
+      return { slug, known, first, owner: first?.author ?? known?.owner };
+    })
+    // A group nothing posts in and nobody is named to own is not this import's to manage.
+    .filter((candidate): candidate is typeof candidate & { owner: string } => Boolean(candidate.owner))
+    .map(({ slug, known, first, owner }) => ({
       slug,
       name: known?.name ?? slug,
       description: known?.description ?? null,
-      visibility: "public" as const,
-      owner_id: ids.account(first.author),
-      created_at: first.created_at,
-    };
-  });
+      visibility: known?.visibility ?? "public",
+      owner_id: ids.account(owner),
+      created_at: first?.created_at ?? null,
+    }));
+}
 
-  const { error } = await supabase.from("groups").upsert(rows, { onConflict: "id" });
-  if (error) throw new Error(`could not write groups: ${error.message}`);
+/** Reads the ids the project already uses for these slugs. Missing slugs are simply absent. */
+async function resolveGroups(supabase: SupabaseClient, slugs: readonly string[]): Promise<Map<string, string>> {
+  if (slugs.length === 0) return new Map();
+
+  const { data, error } = await supabase.from("groups").select("id, slug").in("slug", slugs);
+  if (error) throw new Error(`could not read groups: ${error.message}`);
+
+  return new Map((data as { id: string; slug: string }[] | null ?? []).map((row) => [row.slug, row.id]));
+}
+
+/**
+ * Adopts the groups that exist and creates the ones that do not.
+ *
+ * Slug is a group's identity here, not its uuid. A project that ran the earlier
+ * placeholder seed already holds these slugs under ids nobody can derive, and
+ * slug is unique, so writing an id of our own is a duplicate key rather than an
+ * update. An existing row keeps its id and its created_at, and takes the seed's
+ * name, description, and owner; only a slug the project has never seen gets an
+ * id from the namespace. Returns slug to id, because everything downstream has
+ * to point at whatever id the group turned out to have.
+ */
+async function importGroups(supabase: SupabaseClient, data: SeedFile): Promise<Map<string, string>> {
+  const wanted = managedGroups(data);
+  if (wanted.length === 0) return new Map();
+
+  const bySlug = await resolveGroups(supabase, wanted.map((group) => group.slug));
+  let adopted = 0;
+  let created = 0;
+
+  for (const group of wanted) {
+    const existing = bySlug.get(group.slug);
+
+    if (existing) {
+      const { error } = await supabase
+        .from("groups")
+        .update({ name: group.name, description: group.description, owner_id: group.owner_id })
+        .eq("id", existing);
+      if (error) throw new Error(`could not adopt ${group.slug}: ${error.message}`);
+      adopted += 1;
+      continue;
+    }
+
+    const id = ids.group(group.slug);
+    const { error } = await supabase.from("groups").insert({
+      id,
+      slug: group.slug,
+      name: group.name,
+      description: group.description,
+      visibility: group.visibility,
+      owner_id: group.owner_id,
+      ...(group.created_at ? { created_at: group.created_at } : {}),
+    });
+    if (error) throw new Error(`could not create ${group.slug}: ${error.message}`);
+
+    bySlug.set(group.slug, id);
+    created += 1;
+  }
 
   // Everyone who posted in a group is a member of it, plus the owner.
   const members = new Map<string, { group_id: string; user_id: string; role: "owner" | "member" }>();
-  for (const row of rows) {
-    members.set(`${row.id}:${row.owner_id}`, { group_id: row.id, user_id: row.owner_id, role: "owner" });
+  for (const group of wanted) {
+    const id = bySlug.get(group.slug)!;
+    members.set(`${id}:${group.owner_id}`, { group_id: id, user_id: group.owner_id, role: "owner" });
   }
   for (const post of data.posts) {
     if (!post.group) continue;
-    const key = `${ids.group(post.group)}:${ids.account(post.author)}`;
+    const id = bySlug.get(post.group)!;
+    const key = `${id}:${ids.account(post.author)}`;
     if (members.has(key)) continue;
-    members.set(key, { group_id: ids.group(post.group), user_id: ids.account(post.author), role: "member" });
+    members.set(key, { group_id: id, user_id: ids.account(post.author), role: "member" });
   }
 
   for (const batch of chunk([...members.values()])) {
@@ -253,20 +337,38 @@ async function importGroups(supabase: SupabaseClient, data: SeedFile): Promise<v
     if (memberError) throw new Error(`could not write group members: ${memberError.message}`);
   }
 
-  log(`${rows.length} groups, ${members.size} memberships`);
+  log(`${adopted} groups adopted, ${created} created, ${members.size} memberships`);
+  return bySlug;
 }
 
 // ---------------------------------------------------------------------------
 // Posts and replies
 // ---------------------------------------------------------------------------
 
-async function importPosts(supabase: SupabaseClient, data: SeedFile): Promise<void> {
+/**
+ * The group map is passed in when the groups phase just ran, and read back from
+ * the database when it did not, so --from=posts lands on the same ids.
+ */
+async function importPosts(
+  supabase: SupabaseClient,
+  data: SeedFile,
+  groupIds?: Map<string, string>,
+): Promise<void> {
+  const referenced = [...new Set(data.posts.map((post) => post.group).filter((slug): slug is string => Boolean(slug)))];
+  const bySlug = groupIds ?? (await resolveGroups(supabase, referenced));
+
+  const groupId = (slug: string): string => {
+    const id = bySlug.get(slug);
+    if (!id) throw new Error(`no group with slug ${slug}. Run pnpm seed:import --from=groups first.`);
+    return id;
+  };
+
   // accepted_reply_id is left for its own phase: the reply it points at does not
   // exist yet, and the column has a foreign key.
   const rows = data.posts.map((post) => ({
     id: ids.post(post.id),
     author_id: ids.account(post.author),
-    group_id: post.group ? ids.group(post.group) : null,
+    group_id: post.group ? groupId(post.group) : null,
     topic: post.topic,
     kind: post.kind,
     title: post.title,
@@ -519,6 +621,7 @@ async function main(): Promise<void> {
   const started = PHASES.indexOf(from);
   const shouldRun = (phase: Phase) => PHASES.indexOf(phase) >= started;
   let credentials: Credential[] = [];
+  let groupIds = new Map<string, string>();
 
   console.log(`\nImporting seed.json into ${url}`);
   console.log(`Voter pool: ${poolSize}, which is what the busiest item needs.\n`);
@@ -527,8 +630,8 @@ async function main(): Promise<void> {
     ["validate", async () => log(`${data.accounts.length} accounts, ${data.posts.length} posts, ${data.replies.length} replies passed`)],
     ["accounts", async () => { credentials = credentials.concat(await importAccounts(supabase, data)); }],
     ["voters", async () => { credentials = credentials.concat(await importVoters(supabase, poolSize)); }],
-    ["groups", () => importGroups(supabase, data)],
-    ["posts", () => importPosts(supabase, data)],
+    ["groups", async () => { groupIds = await importGroups(supabase, data); }],
+    ["posts", () => importPosts(supabase, data, groupIds.size > 0 ? groupIds : undefined)],
     ["replies", () => importReplies(supabase, data)],
     ["accepted", () => importAccepted(supabase, data)],
     ["votes", () => importVotes(supabase, data, poolSize)],
@@ -558,4 +661,4 @@ if (process.argv[1] && process.argv[1].endsWith("import.ts")) {
   void main();
 }
 
-export { SEED_EMAIL_DOMAIN, cleanup, importAccounts, importGroups, importPosts, importReplies, importVotes };
+export { SEED_EMAIL_DOMAIN, cleanup, importAccounts, importGroups, importPosts, importReplies, importVotes, managedGroups, resolveGroups };

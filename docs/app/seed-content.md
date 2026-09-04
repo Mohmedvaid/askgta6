@@ -28,7 +28,7 @@ it spent on vote rows.
 | `validate` | Nothing. Reads the file, checks every rule, rewrites `SCHEMA.md`. |
 | `accounts` | An auth user and a profile per account in the file. |
 | `voters` | The synthetic voter pool. They never post. |
-| `groups` | Any group the posts reference, plus memberships. |
+| `groups` | Any group the posts reference, plus the private group, plus memberships. |
 | `posts` | Every post, with its original `created_at`. |
 | `replies` | Every reply, same. |
 | `accepted` | Links each accepted answer, once its reply exists. |
@@ -47,7 +47,17 @@ pnpm seed:import --from=votes
 
 Re-running from the start is always safe too, and slower.
 
-## Two things worth knowing
+## Three things worth knowing
+
+**Groups are matched by slug, not by id.** A project that has run an earlier seed
+already holds these slugs under ids nobody can derive, and `slug` is unique, so a
+group that is already there is adopted: it keeps its id and its `created_at`, and
+takes the seed's name, description, and owner. Only a slug the project has never
+seen gets a fresh id. Everything downstream points at whatever id the group turned
+out to have, including `--from=posts`, which reads the ids back rather than
+assuming them. Ownership always lands on an account from `seed.json`, because
+`groups.owner_id` cascades on delete and the `cleanup` phase deletes the old
+placeholder accounts.
 
 **Passwords are rotated on every run.** They are written once to
 `seed-credentials.local.json` in the repository root, mode 600 and gitignored. An

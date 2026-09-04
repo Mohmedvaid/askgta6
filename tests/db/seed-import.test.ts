@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asAnon, asUser, createTestDb, type Db } from "./harness";
-import { buildVotes, voterPoolSize } from "../../supabase/seed/import";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { buildVotes, importGroups, importPosts, managedGroups, voterPoolSize } from "../../supabase/seed/import";
+import { postgrest } from "./postgrest";
 import { ids } from "../../supabase/seed/ids";
 import { validate } from "../../supabase/seed/schema";
 import type { SeedFile } from "../../supabase/seed/types";
@@ -367,5 +369,140 @@ describe("the seed importer", () => {
         }
       });
     });
+  });
+});
+
+/**
+ * The groups phase against a project that already has the groups.
+ *
+ * This is the case that broke the first production run: the earlier placeholder
+ * seed created these slugs with random uuids, and slug is unique, so writing a
+ * row at the importer's own id is a duplicate key rather than an update. These
+ * tests drive the shipped importGroups and importPosts, through a thin
+ * PostgREST shim, rather than a copy of them in SQL.
+ */
+describe("adopting groups that already exist", () => {
+  // p5 moves into a group the project has never seen, so both paths are covered.
+  const ADOPTED = {
+    ...FIXTURE,
+    posts: FIXTURE.posts.map((post) => (post.id === "p5" ? { ...post, group: "first-timers" } : post)),
+  } as SeedFile;
+
+  let db: Db;
+  let supabase: SupabaseClient;
+  let existingViceCity: string;
+  let existingNightShift: string;
+  let placeholder: string;
+
+  beforeAll(async () => {
+    db = await createTestDb();
+    supabase = postgrest(db);
+
+    // Every account the fixture posts as, plus every owner the groups need.
+    const owners = managedGroups(ADOPTED).map((group) => group.owner_id);
+    const people = [...new Set([...ADOPTED.accounts.map((a) => ids.account(a.username)), ...owners])];
+
+    for (const [index, id] of people.entries()) {
+      await db.query(`insert into auth.users (id, email) values ($1, $2) on conflict (id) do nothing`, [
+        id,
+        `${id}@seed.askgta6.local`,
+      ]);
+      await db.query(`update public.profiles set username = $2 where id = $1`, [id, `seeded_${index}`]);
+    }
+
+    // The account the old seed left owning both groups, and about to be deleted.
+    placeholder = (
+      await db.query<{ id: string }>(`insert into auth.users (email) values ('wes@old.local') returning id`)
+    ).rows[0]!.id;
+    await db.query(`update public.profiles set username = 'wes_old' where id = $1`, [placeholder]);
+
+    existingViceCity = (
+      await db.query<{ id: string }>(
+        `insert into public.groups (slug, name, description, visibility, owner_id)
+         values ('vice-city-locals', 'Old name', 'Old description', 'public', $1) returning id`,
+        [placeholder],
+      )
+    ).rows[0]!.id;
+
+    existingNightShift = (
+      await db.query<{ id: string }>(
+        `insert into public.groups (slug, name, description, visibility, owner_id)
+         values ('night-shift', 'Night shift', 'Old description', 'private', $1) returning id`,
+        [placeholder],
+      )
+    ).rows[0]!.id;
+  }, 60_000);
+
+  afterAll(async () => {
+    await db.close();
+  });
+
+  it("keeps the id the project already uses rather than colliding on the slug", async () => {
+    const bySlug = await importGroups(supabase, ADOPTED);
+
+    expect(bySlug.get("vice-city-locals")).toBe(existingViceCity);
+    expect(existingViceCity).not.toBe(ids.group("vice-city-locals"));
+
+    const rows = await db.query<{ count: string }>(
+      `select count(*) from public.groups where slug = 'vice-city-locals'`,
+    );
+    expect(Number(rows.rows[0]!.count)).toBe(1);
+  });
+
+  it("writes the seed name, description, and owner over the old ones", async () => {
+    const row = await db.query<{ name: string; description: string; owner_id: string }>(
+      `select name, description, owner_id from public.groups where id = $1`,
+      [existingViceCity],
+    );
+
+    expect(row.rows[0]!.name).toBe("Vice City locals");
+    expect(row.rows[0]!.description).toContain("radio towers");
+    expect(row.rows[0]!.owner_id).toBe(ids.account("mapnerd"));
+  });
+
+  it("adopts the private group too, and leaves it private", async () => {
+    const row = await db.query<{ id: string; visibility: string; owner_id: string }>(
+      `select id, visibility, owner_id from public.groups where slug = 'night-shift'`,
+    );
+
+    expect(row.rows).toHaveLength(1);
+    expect(row.rows[0]!.id).toBe(existingNightShift);
+    expect(row.rows[0]!.visibility).toBe("private");
+    expect(row.rows[0]!.owner_id).not.toBe(placeholder);
+  });
+
+  it("leaves no group owned by an account the cleanup phase would delete", async () => {
+    const rows = await db.query<{ count: string }>(`select count(*) from public.groups where owner_id = $1`, [
+      placeholder,
+    ]);
+    expect(Number(rows.rows[0]!.count)).toBe(0);
+  });
+
+  it("creates a slug the project has never seen, at the id from the namespace", async () => {
+    const row = await db.query<{ id: string }>(`select id from public.groups where slug = 'first-timers'`);
+
+    expect(row.rows).toHaveLength(1);
+    expect(row.rows[0]!.id).toBe(ids.group("first-timers"));
+  });
+
+  it("points posts at the adopted id, resolving it on its own when the phase is resumed", async () => {
+    await importPosts(supabase, ADOPTED);
+
+    const rows = await db.query<{ group_id: string | null }>(
+      `select group_id from public.posts where id = any($1)`,
+      [[ids.post("p2"), ids.post("p4")]],
+    );
+
+    expect(rows.rows).toHaveLength(2);
+    for (const row of rows.rows) expect(row.group_id).toBe(existingViceCity);
+  });
+
+  it("adds no rows on a second run", async () => {
+    const before = await db.query<{ count: string }>(`select count(*) from public.groups`);
+    await importGroups(supabase, ADOPTED);
+    const after = await db.query<{ count: string }>(`select count(*) from public.groups`);
+
+    expect(after.rows[0]!.count).toBe(before.rows[0]!.count);
+    expect(Number(after.rows[0]!.count)).toBe(3);
   });
 });
