@@ -32,14 +32,14 @@ Four seed accounts exist with rotating random passwords. Before launch either de
 
 ### Real brand
 
-Each is swappable from exactly one file:
+The Vice direction is applied, so this is now a swap of one palette for another rather than a swap of a placeholder for a design. [design/README.md](design/README.md) has the contrast table any replacement has to hold. Each piece is swappable from exactly one file:
 
 - Palette, radii, shadows, spacing: `lib/theme/tokens.css`. Nothing else in the codebase declares a color and `pnpm lint` fails if anything tries.
-- Open Graph palette: `lib/theme/og.ts`, four hex values. The one deliberate duplicate, because Satori cannot read CSS custom properties. Keep it in step by eye.
-- Fonts: `lib/theme/fonts.ts`. Bricolage Grotesque, Source Sans 3, JetBrains Mono today.
+- Open Graph palette: `lib/theme/og.ts`, six hex values. The one deliberate duplicate, because Satori cannot read CSS custom properties. Keep it in step by eye.
+- Fonts: `lib/theme/fonts.ts`. Archivo Black, Inter, IBM Plex Mono today.
 - Wordmark: `components/brand/Wordmark.tsx`.
 - Square mark, used as the avatar fallback: `components/brand/Mark.tsx`.
-- Favicon: `app/icon.svg`, a standalone copy of the mark, so it needs the same swap.
+- Favicon: `app/icon.svg`, a standalone copy of the mark with the colors written out, because a favicon cannot read CSS custom properties. It needs the same swap.
 
 ### Discord OAuth, and maybe Google
 

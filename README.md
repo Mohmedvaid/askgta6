@@ -79,11 +79,13 @@ tests/
 
 ## Swapping the brand
 
+The live theme is Vice: a neutral near black base, one hot rose accent, and a warm bone treatment for a sealed body. `docs/design/README.md` has the alternatives that were considered and the contrast table any replacement has to hold.
+
 Everything visual lives in one place each:
 
-- Colors, radii, shadows, spacing: `lib/theme/tokens.css`. No hex, rgb, hsl, or oklch literal may appear anywhere else, and `pnpm lint` fails if one does.
-- Fonts: `lib/theme/fonts.ts`.
-- Logo: `components/brand/Wordmark.tsx` and `components/brand/Mark.tsx`, plus `app/icon.svg` for the favicon.
+- Colors, radii, shadows, spacing: `lib/theme/tokens.css`. No hex, rgb, hsl, or oklch literal may appear anywhere else, and `pnpm lint` fails if one does. `pnpm test` checks every pair against WCAG AA in both themes, parsing that file rather than a copy.
+- Fonts: `lib/theme/fonts.ts`. Archivo Black, Inter, IBM Plex Mono.
+- Logo: `components/brand/Wordmark.tsx` and `components/brand/Mark.tsx`, which read their colors from tokens, plus `app/icon.svg` for the favicon and `lib/theme/og.ts` for link previews, which both need their colors written out and are checked against the tokens by the suite.
 - Spoiler level labels: `SPOILER_LEVELS` in `lib/spoilers.ts`. Rename them when the real story structure is public. The count stays at eight.
 
 ## Indexing

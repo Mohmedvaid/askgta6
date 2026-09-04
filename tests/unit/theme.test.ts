@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { linearToHex, readTheme } from "./color";
 import { THEME_BOOTSTRAP, THEME_COOKIE, resolveTheme } from "@/lib/theme/cookie";
 import { OG_PALETTE } from "@/lib/theme/og";
 
@@ -15,12 +16,31 @@ describe("theme cookie", () => {
   });
 });
 
+/** The dark theme block of tokens.css, which is what an Open Graph card wears. */
+function darkHex(): Record<string, string> {
+  const tokens = readTheme("dark");
+  return Object.fromEntries(Object.entries(tokens).map(([name, rgb]) => [name, linearToHex(rgb)]));
+}
+
 describe("open graph palette", () => {
-  it("carries the four values the image needs", () => {
-    expect(Object.keys(OG_PALETTE)).toEqual(["ink", "paper", "accent", "muted"]);
+  it("carries the six values the image needs, as hex", () => {
+    expect(Object.keys(OG_PALETTE)).toEqual(["ink", "paper", "accent", "accentInk", "muted", "line"]);
     for (const value of Object.values(OG_PALETTE)) {
       expect(value).toMatch(/^#[0-9a-f]{6}$/);
     }
+  });
+
+  it("still matches the dark theme it is a copy of", () => {
+    // Satori cannot read CSS custom properties, so these six are duplicated by
+    // hand. This is the check that they were not left behind by a palette change.
+    const dark = darkHex();
+
+    expect(OG_PALETTE.ink).toBe(dark["--surface-0"]);
+    expect(OG_PALETTE.paper).toBe(dark["--text-primary"]);
+    expect(OG_PALETTE.accent).toBe(dark["--accent"]);
+    expect(OG_PALETTE.accentInk).toBe(dark["--accent-text"]);
+    expect(OG_PALETTE.muted).toBe(dark["--text-muted"]);
+    expect(OG_PALETTE.line).toBe(dark["--border"]);
   });
 });
 

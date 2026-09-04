@@ -15,7 +15,7 @@ export function SpoilerPlaceholder({ variant, level }: { variant: "card" | "full
       </p>
       <div aria-hidden className="mt-3 space-y-2.5">
         {bars.map((width, index) => (
-          <div key={index} className="h-2.5 rounded-sm bg-surface-2" style={{ width: `${width}%` }} />
+          <div key={index} className="h-2.5 rounded-sm bg-spoiler/30" style={{ width: `${width}%` }} />
         ))}
       </div>
     </div>
