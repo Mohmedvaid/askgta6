@@ -62,6 +62,35 @@ test.describe("compose", () => {
   });
 });
 
+test.describe("password reset", () => {
+  test("the sign in page links to it", async ({ page }) => {
+    await page.goto("/auth/sign-in");
+
+    const link = page.getByRole("link", { name: "Forgot password?" });
+    await expect(link).toBeVisible();
+
+    await link.click();
+    await expect(page).toHaveURL(/\/auth\/forgot/);
+    await expect(page.getByRole("heading", { name: "Forgot your password" })).toBeVisible();
+  });
+
+  test("the forgot page asks for one email and nothing else", async ({ page }) => {
+    await page.goto("/auth/forgot");
+
+    await expect(page.getByLabel("Email")).toHaveCount(1);
+    await expect(page.getByLabel("Password")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Send the link" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Send the link" }).click();
+    await expect(page.getByLabel("Email")).toHaveJSProperty("validity.valueMissing", true);
+  });
+
+  test("the reset page turns away anyone without a recovery session", async ({ page }) => {
+    await page.goto("/auth/reset");
+    await expect(page).toHaveURL(/\/auth\/forgot/);
+  });
+});
+
 test.describe("magic link, disabled", () => {
   test("the sign in page offers one form and no way to ask for a link", async ({ page }) => {
     await page.goto("/auth/sign-in");

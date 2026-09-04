@@ -14,13 +14,22 @@ const refresh = vi.fn();
 const signIn = vi.fn();
 const signUp = vi.fn();
 const sendMagicLink = vi.fn();
+const requestPasswordReset = vi.fn();
+const updatePassword = vi.fn();
 const push = vi.fn();
 const track = vi.fn();
 
 vi.mock("@/actions/groups", () => ({ createGroup, createInvite, redeemInvite }));
 vi.mock("@/actions/profile", () => ({ saveProfile, setSpoilerShield, uploadAvatar, setTheme: vi.fn() }));
 vi.mock("@/actions/onboarding", () => ({ completeOnboarding }));
-vi.mock("@/app/auth/actions", () => ({ signIn, signUp, sendMagicLink, signInWithProvider: vi.fn() }));
+vi.mock("@/app/auth/actions", () => ({
+  signIn,
+  signUp,
+  sendMagicLink,
+  requestPasswordReset,
+  updatePassword,
+  signInWithProvider: vi.fn(),
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push, refresh }) }));
 vi.mock("@/lib/analytics", () => ({ track }));
 
@@ -28,6 +37,8 @@ const { PostComposer } = await import("@/components/form/PostComposer");
 const { ProfileForm } = await import("@/components/form/ProfileForm");
 const { AvatarForm } = await import("@/components/form/AvatarForm");
 const { OnboardingForm } = await import("@/components/form/OnboardingForm");
+const { ForgotPasswordForm } = await import("@/components/form/ForgotPasswordForm");
+const { ResetPasswordForm } = await import("@/components/form/ResetPasswordForm");
 const { AuthForm } = await import("@/components/form/AuthForm");
 const { GroupComposer } = await import("@/components/group/GroupComposer");
 const { InvitePanel } = await import("@/components/group/InvitePanel");
@@ -216,6 +227,15 @@ describe("AuthForm", () => {
     expect(sendMagicLink).not.toHaveBeenCalled();
   });
 
+  it("offers a way to the forgot password page when signing in, and not when signing up", () => {
+    const { unmount } = render(<AuthForm mode="sign-in" discordEnabled={false} googleEnabled={false} />);
+    expect(screen.getByRole("link", { name: "Forgot password?" })).toHaveAttribute("href", "/auth/forgot");
+    unmount();
+
+    render(<AuthForm mode="sign-up" discordEnabled={false} googleEnabled={false} />);
+    expect(screen.queryByRole("link", { name: "Forgot password?" })).toBeNull();
+  });
+
   it("keeps both OAuth buttons when their flags are on", () => {
     render(<AuthForm mode="sign-in" discordEnabled googleEnabled />);
 
@@ -390,5 +410,39 @@ describe("ShieldPill accessible name", () => {
 
     render(<ShieldPill enabled progress={7} />);
     expect(screen.getByRole("button", { name: "Spoiler shield: Finished" })).toBeInTheDocument();
+  });
+});
+
+describe("ForgotPasswordForm", () => {
+  it("says the same thing whatever the address was", async () => {
+    requestPasswordReset.mockResolvedValue({ ok: true, data: undefined });
+
+    render(<ForgotPasswordForm />);
+    await userEvent.type(screen.getByLabelText("Email"), "nobody@example.com");
+    await userEvent.click(screen.getByRole("button", { name: "Send the link" }));
+
+    // "If that address has an account" is the whole point. It never confirms one.
+    expect(await screen.findByRole("heading", { name: "Check your inbox" })).toBeInTheDocument();
+    expect(screen.getByText(/If that address has an account/)).toBeInTheDocument();
+  });
+
+  it("carries the honeypot, and no error state to read a failure off", () => {
+    const { container } = render(<ForgotPasswordForm />);
+
+    expect(container.querySelector('input[name="website"]')).not.toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});
+
+describe("ResetPasswordForm", () => {
+  it("reports two passwords that do not match", async () => {
+    updatePassword.mockResolvedValue({ ok: false, error: "Those two passwords do not match." });
+
+    render(<ResetPasswordForm />);
+    await userEvent.type(screen.getByLabelText("New password"), "a-new-password");
+    await userEvent.type(screen.getByLabelText("Confirm it"), "something-else");
+    await userEvent.click(screen.getByRole("button", { name: "Save password" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("do not match");
   });
 });

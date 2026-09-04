@@ -87,6 +87,17 @@ describe("authCallbackUrl", () => {
     expect(url.endsWith(AUTH_CALLBACK_PATH)).toBe(true);
     expect(new URL(url).pathname).toBe(AUTH_CALLBACK_PATH);
   });
+
+  it("carries a next path as an encoded query parameter, still on the callback", async () => {
+    headerStore.headers = { "x-forwarded-host": "askgta6.com", "x-forwarded-proto": "https" };
+    const url = await authCallbackUrl("/auth/reset");
+
+    expect(url).toBe("https://askgta6.com/auth/callback?next=%2Fauth%2Freset");
+
+    const parsed = new URL(url);
+    expect(parsed.pathname).toBe(AUTH_CALLBACK_PATH);
+    expect(parsed.searchParams.get("next")).toBe("/auth/reset");
+  });
 });
 
 /**
@@ -138,7 +149,8 @@ describe("every auth redirect goes through the one builder", () => {
         while (at !== -1) {
           const args = callArguments(source, at + token.length - 1);
           seen.push(`${path} ${method}`);
-          expect(args, `${path} calls auth.${method} without the builder`).toContain("await authCallbackUrl()");
+          // With or without a `next` argument, it has to be the builder.
+          expect(args, `${path} calls auth.${method} without the builder`).toContain("await authCallbackUrl(");
           at = source.indexOf(token, at + 1);
         }
       }
@@ -146,6 +158,7 @@ describe("every auth redirect goes through the one builder", () => {
 
     // A guard that asserted nothing would pass silently once the calls moved.
     expect(seen.sort()).toEqual([
+      "app/auth/actions.ts resetPasswordForEmail",
       "app/auth/actions.ts signInWithOAuth",
       "app/auth/actions.ts signInWithOtp",
       "app/auth/actions.ts signUp",
@@ -155,7 +168,9 @@ describe("every auth redirect goes through the one builder", () => {
   it("never assigns a redirect option anything but the builder", () => {
     for (const [path, source] of files) {
       for (const match of source.matchAll(/(emailRedirectTo|redirectTo)\s*:\s*([^,\n}]+)/g)) {
-        expect(match[2]!.trim(), `${path} builds a redirect by hand`).toBe("await authCallbackUrl()");
+        expect(match[2]!.trim(), `${path} builds a redirect by hand`).toMatch(
+          /^await authCallbackUrl\([A-Z_]*\)$/,
+        );
       }
     }
   });

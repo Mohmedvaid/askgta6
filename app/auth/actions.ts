@@ -3,17 +3,29 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getViewer } from "@/lib/viewer";
 import { type ActionResult } from "@/lib/validation";
 import { adoptAnonymousShield } from "@/lib/adopt-progress";
 import { MAGIC_LINK_DISABLED, logAuthError, reportAuthError } from "@/lib/auth-errors";
 import { authCallbackUrl } from "@/lib/auth-callback";
 import { honeypotTripped } from "@/lib/honeypot";
-import { MAGIC_LINK_ENABLED } from "@/lib/auth-features";
+import { PASSWORD_RESET_PATH, clearRecoveryMarker } from "@/lib/recovery";
+import { MAGIC_LINK_ENABLED, PASSWORD_RESET_ENABLED } from "@/lib/auth-features";
 
 const credentials = z.object({
   email: z.string().trim().email("Enter a valid email address."),
   password: z.string().min(8, "Passwords are at least 8 characters."),
 });
+
+const newPassword = z
+  .object({
+    password: z.string().min(8, "Passwords are at least 8 characters."),
+    confirm: z.string(),
+  })
+  .refine((value) => value.password === value.confirm, {
+    message: "Those two passwords do not match.",
+    path: ["confirm"],
+  });
 
 export async function signIn(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
   const parsed = credentials.safeParse({
@@ -88,6 +100,75 @@ export async function sendMagicLink(_state: ActionResult | null, formData: FormD
 
   if (error) return { ok: false, error: reportAuthError("sendMagicLink", error) };
   return { ok: true, data: undefined };
+}
+
+/**
+ * Ask for a password reset email.
+ *
+ * The answer is the same whether or not the address has an account. An endpoint
+ * that says "no such account" is an account enumeration oracle, and this one is
+ * unauthenticated, so it would be a free membership list. Every branch below,
+ * including a Supabase failure and the feature being switched off, returns the
+ * same ok result. Failures still reach the runtime log.
+ */
+export async function requestPasswordReset(
+  _state: ActionResult | null,
+  formData: FormData,
+): Promise<ActionResult> {
+  const neutral: ActionResult = { ok: true, data: undefined };
+
+  if (honeypotTripped(formData)) return neutral;
+
+  const email = z.string().trim().email().safeParse(String(formData.get("email") ?? ""));
+  // Even a malformed address gets the neutral answer, so the shape of the reply
+  // never becomes a signal about what is in the table.
+  if (!email.success) return neutral;
+
+  if (!PASSWORD_RESET_ENABLED) {
+    logAuthError("requestPasswordReset", { code: "feature_disabled", message: "PASSWORD_RESET_ENABLED is false" });
+    return neutral;
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email.data, {
+    redirectTo: await authCallbackUrl(PASSWORD_RESET_PATH),
+  });
+
+  // Logged, never shown. The reader gets the same sentence either way.
+  logAuthError("requestPasswordReset", error);
+  return neutral;
+}
+
+/**
+ * Set a new password from a recovery session.
+ *
+ * Reachable only from /auth/reset, which refuses anyone who did not arrive
+ * through a recovery link. This re-checks the session rather than trusting the
+ * page, because a server action is its own entry point.
+ */
+export async function updatePassword(_state: ActionResult | null, formData: FormData): Promise<ActionResult> {
+  const parsed = newPassword.safeParse({
+    password: String(formData.get("password") ?? ""),
+    confirm: String(formData.get("confirm") ?? ""),
+  });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]!.message };
+
+  // getViewer rather than a second auth.getUser: it is the one cached lookup, and
+  // tests/unit/request-cache.test.ts keeps it that way.
+  const viewer = await getViewer();
+  if (!viewer) {
+    return { ok: false, error: "That reset link has expired. Ask for a new one." };
+  }
+
+  const supabase = await createSupabaseServerClient();
+  const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+  if (error) return { ok: false, error: reportAuthError("updatePassword", error) };
+
+  // The recovery marker has done its job. Clearing it means the link cannot be
+  // replayed from a back button into a second password change.
+  await clearRecoveryMarker();
+
+  redirect("/settings");
 }
 
 export async function signInWithProvider(formData: FormData): Promise<void> {

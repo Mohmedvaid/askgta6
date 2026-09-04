@@ -72,17 +72,23 @@ export async function authOrigin(): Promise<string> {
 }
 
 /**
- * Where Supabase sends a person after they click a confirmation or magic link.
+ * Where Supabase sends a person after they click a confirmation, recovery, or
+ * magic link.
  *
- * Every signUp, signInWithOtp, and signInWithOAuth call goes through this and
- * nothing else builds an auth redirect. tests/unit/auth-redirect.test.ts scans the
- * source and fails if one ever does.
+ * Every signUp, signInWithOtp, signInWithOAuth, and resetPasswordForEmail call
+ * goes through this and nothing else builds an auth redirect.
+ * tests/unit/auth-redirect.test.ts scans the source and fails if one ever does.
+ *
+ * `next` is where the callback route sends the person once it has exchanged the
+ * code, so a recovery link can land on the new password form rather than the feed.
+ * It has to be a path on this site; the callback route refuses anything else.
  *
  * The origin must also be in the project's redirect allow list under
  * Authentication, URL Configuration, or Supabase discards it and substitutes its
  * own Site URL, which is a bare origin with no path. lib/auth-errors.ts has the
  * copy for the case where it refuses outright.
  */
-export async function authCallbackUrl(): Promise<string> {
-  return `${await authOrigin()}${AUTH_CALLBACK_PATH}`;
+export async function authCallbackUrl(next?: string): Promise<string> {
+  const url = `${await authOrigin()}${AUTH_CALLBACK_PATH}`;
+  return next ? `${url}?next=${encodeURIComponent(next)}` : url;
 }

@@ -110,6 +110,8 @@ Vercel Analytics, mounted in the root layout. `lib/analytics.ts` declares exactl
 
 Email and password, plus Discord and Google behind their flags.
 
+Password reset is at `/auth/forgot`, linked from the sign in page. It answers identically for an address with an account and one without, so it cannot be used to enumerate members. The reset link lands on `/auth/callback?next=/auth/reset`, and that page needs both a session and a short lived recovery marker cookie that only the callback sets, so it is not a change password form for whoever happens to be signed in. `PASSWORD_RESET_ENABLED` in `lib/auth-features.ts` switches the send off if the sender misbehaves.
+
 Magic link sign in is **disabled** as of September 2026, pending confidence in the new SMTP sender. Nothing was deleted: the action is still there and still tested, the form is gone from the sign in page, and `MAGIC_LINK_ENABLED` in `lib/auth-features.ts` is false so a stray post does nothing. Turning it back on means flipping that flag and restoring the form.
 
 Every auth redirect is built by `authCallbackUrl()` in `lib/auth-callback.ts` and nothing else, which a source scanning test enforces. It prefers the origin the request arrived on, from `x-forwarded-host` and `x-forwarded-proto`, over `NEXT_PUBLIC_SITE_URL`, because that variable is baked in at build time and can be stale. It always appends `/auth/callback` and throws in production rather than falling back to localhost.

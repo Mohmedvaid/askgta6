@@ -62,6 +62,22 @@ The username is the literal string `resend` for every Resend account. It is not 
 
 **"Confirm email" is on.** That is safe now that the sender is Resend rather than the built in one.
 
+### Email templates, still on the default
+
+**Authentication, Emails, Templates.** Every template is Supabase's stock wording, which says "Supabase" nowhere but reads like a system notice rather than like this site. Worth customizing, not urgent.
+
+The one that matters most is **Reset Password**, because password reset is now the only self service way back into an account while magic link is off, so it is the email a locked out reader actually has to trust and act on.
+
+| Template | Default subject | Change it to something like |
+| --- | --- | --- |
+| Reset Password | Reset Your Password | Reset your AskGTA6 password |
+| Confirm signup | Confirm Your Signup | Confirm your email for AskGTA6 |
+| Magic Link | Your Magic Link | Leave it. That method is disabled, see [architecture.md](architecture.md). |
+
+For the reset body, keep four things: who it is from, that somebody asked for it, that ignoring it is safe and changes nothing, and how long the link lasts. `{{ .ConfirmationURL }}` is the link. Say the address plainly next to the button as well, because a mail client that strips the button leaves nothing to click.
+
+The link lands on `/auth/callback?next=/auth/reset`, so the origin has to be in the redirect allow list above like every other auth link. Editing a template does not change any of that.
+
 ### Auth URLs
 
 **Authentication, URL Configuration**, set September 3, 2026:

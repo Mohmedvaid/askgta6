@@ -15,6 +15,11 @@ export type AuthErrorLike = {
 
 export const GENERIC_AUTH_ERROR = "That did not work. Try again in a minute.";
 
+// Names the control that actually exists, rather than telling somebody to reset a
+// password and leaving them to find out how. The link is on the sign in page.
+export const ALREADY_REGISTERED =
+  "That email is already registered. Sign in instead, or use the Forgot password link on the sign in page.";
+
 /**
  * Codes Supabase actually returns, mapped to copy that says what to do next.
  * Anything not in here keeps the generic message, so a new code never leaks
@@ -30,8 +35,8 @@ const MESSAGES: Record<string, string> = {
   validation_failed: "Check the email and password and try again.",
   invalid_credentials: "That email and password do not match an account.",
   email_not_confirmed: "Confirm your email address first. Check your inbox for the link.",
-  user_already_exists: "That email is already registered. Sign in instead, or reset your password.",
-  email_exists: "That email is already registered. Sign in instead, or reset your password.",
+  user_already_exists: ALREADY_REGISTERED,
+  email_exists: ALREADY_REGISTERED,
   phone_exists: "That account already exists. Sign in instead.",
   weak_password: "Pick a longer password. Eight characters is the minimum.",
   same_password: "That is your current password. Pick a different one.",

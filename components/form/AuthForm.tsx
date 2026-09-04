@@ -54,9 +54,16 @@ export function AuthForm({ mode, next, discordEnabled, googleEnabled }: AuthForm
         </div>
 
         <div>
-          <label htmlFor="password" className="text-sm font-semibold text-text-primary">
-            Password
-          </label>
+          <div className="flex items-baseline justify-between gap-3">
+            <label htmlFor="password" className="text-sm font-semibold text-text-primary">
+              Password
+            </label>
+            {signingIn ? (
+              <Link href="/auth/forgot" className="text-sm font-medium text-accent">
+                Forgot password?
+              </Link>
+            ) : null}
+          </div>
           <input
             id="password"
             name="password"

@@ -71,7 +71,7 @@ describe("invalid credentials", () => {
 describe("email already registered", () => {
   it.each(["user_already_exists", "email_exists"])("maps %s to sign in instead", (code) => {
     expect(authErrorMessage({ code })).toBe(
-      "That email is already registered. Sign in instead, or reset your password.",
+      "That email is already registered. Sign in instead, or use the Forgot password link on the sign in page.",
     );
   });
 });
